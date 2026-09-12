@@ -450,9 +450,9 @@ export function StatsPage() {
   const visibleModels = cacheTrend.models.filter((m) => !hiddenModels.has(m));
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">
+    <div className="workspace-page">
+      <div className="workspace-page-header">
+        <h1 className="workspace-page-title">
           使用统计
           <span className="text-sm font-normal text-muted-foreground ml-2">
             ({source === "claude" ? "Claude" : "Codex"})
@@ -521,7 +521,7 @@ export function StatsPage() {
         {!isSingleDay && dataMinDate && dataMaxDate && (
           <span
             className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/50 px-2 py-1 rounded"
-            title={`仅扫描 ~/.claude/projects 下现存的 .jsonl，更早的会话若被清理或不在本机则不会被纳入统计。`}
+            title={`仅统计当前来源下现存的会话文件，已清理或不在当前机器上的会话不会纳入统计。`}
           >
             <Calendar className="w-3 h-3" />
             数据覆盖 {dataMinDate} ~ {dataMaxDate}（共 {dataDayCount} 天）
@@ -530,7 +530,7 @@ export function StatsPage() {
       </div>
 
       {/* Summary cards: tokens + cost */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
         <StatCard
           icon={<Calendar className="w-5 h-5" />}
           label="总会话数（全期）"
@@ -551,20 +551,6 @@ export function StatsPage() {
           ).toLocaleString()}
         />
         <StatCard
-          icon={<Zap className="w-5 h-5" />}
-          label="未缓存输入 Token"
-          value={formatTokens(filteredTotals.totalInputTokens)}
-        />
-        <StatCard
-          icon={<Activity className="w-5 h-5" />}
-          label="总 Token"
-          value={formatTokens(filteredTotals.totalTokens)}
-        />
-      </div>
-
-      {/* Cost + cache row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard
           icon={<DollarSign className="w-5 h-5" />}
           label="累计花费 (USD)"
           value={
@@ -573,6 +559,21 @@ export function StatsPage() {
               : formatCost(filteredTotals.totalCost)
           }
           accent="text-green-500"
+        />
+        <StatCard
+          icon={<Activity className="w-5 h-5" />}
+          label="总 Token"
+          value={formatTokens(filteredTotals.totalTokens)}
+        />
+      </div>
+
+      {/* Additional token metrics */}
+      <details className="workspace-filter mb-5"><summary>Token 与缓存明细</summary>
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+        <StatCard
+          icon={<Zap className="w-5 h-5" />}
+          label="未缓存输入 Token"
+          value={formatTokens(filteredTotals.totalInputTokens)}
         />
         <StatCard
           icon={<Database className="w-5 h-5" />}
@@ -596,9 +597,11 @@ export function StatsPage() {
         />
       </div>
 
+      </details>
+
       {/* Daily token chart (stacked input + output + cache) */}
       {chartData.length > 0 && (
-        <div className="bg-card border border-border rounded-lg p-4 mb-6">
+        <div className="bg-card border border-border rounded-lg p-4 mb-4">
           <h2 className="text-sm font-medium mb-4">
             Token 用量
             <span className="text-xs text-muted-foreground ml-2">({granularityLabel})</span>
@@ -646,7 +649,7 @@ export function StatsPage() {
 
       {/* Cost trend */}
       {chartData.length > 0 && (
-        <div className="bg-card border border-border rounded-lg p-4 mb-6">
+        <div className="bg-card border border-border rounded-lg p-4 mb-4">
           <h2 className="text-sm font-medium mb-4">
             花费趋势 (USD)
             <span className="text-xs text-muted-foreground ml-2">({granularityLabel})</span>
@@ -685,7 +688,7 @@ export function StatsPage() {
 
       {/* Cache hit rate trend by model */}
       {cacheTrend.rows.length > 0 && cacheTrend.models.length > 0 && (
-        <div className="bg-card border border-border rounded-lg p-4 mb-6">
+        <div className="bg-card border border-border rounded-lg p-4 mb-4">
           <div className="flex items-start justify-between mb-1">
             <div>
               <h2 className="text-sm font-medium">
@@ -783,7 +786,7 @@ export function StatsPage() {
 
       {/* Project cost ranking */}
       {!projectCostsLoading && topProjects.length > 0 && (
-        <div className="bg-card border border-border rounded-lg p-4 mb-6">
+        <div className="bg-card border border-border rounded-lg p-4 mb-4">
           <h2 className="text-sm font-medium mb-1 flex items-center gap-1.5">
             <FolderOpen className="w-4 h-4" />
             项目花费排行 (Top 10)

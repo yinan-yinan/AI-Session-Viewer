@@ -18,7 +18,7 @@ type SearchScope = "all" | "content" | "session" | "tags";
 
 const SEARCH_SCOPE_OPTIONS: Array<{ key: SearchScope; label: string }> = [
   { key: "all", label: "所有" },
-  { key: "content", label: "session 内容" },
+  { key: "content", label: "消息内容" },
   { key: "session", label: "会话名称" },
   { key: "tags", label: "标签" },
 ];
@@ -201,13 +201,14 @@ export function SearchPage() {
   }, [filteredResults, searchMode]);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">全局搜索</h1>
+    <div className="workspace-page">
+      <div className="mb-5"><h1 className="workspace-page-title">搜索会话</h1><p className="workspace-page-description">查找消息、会话名称和标签</p></div>
 
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
-          type="text"
+          type="search"
+          aria-label="搜索会话"
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="搜索所有会话内容..."
@@ -245,7 +246,7 @@ export function SearchPage() {
           </button>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-card px-1 py-1">
+        <div className="flex flex-wrap items-center gap-1 rounded-md border border-border bg-card p-1">
           <span className="inline-flex items-center gap-1 px-2 text-xs text-muted-foreground">
             <Filter className="w-3.5 h-3.5" />
             匹配范围
@@ -267,7 +268,8 @@ export function SearchPage() {
       </div>
 
       {allGlobalTags.length > 0 && (
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
+        <details className="workspace-filter"><summary>标签筛选{globalTagFilter.length > 0 ? " · 已选 " + globalTagFilter.length : ""}</summary>
+        <div className="flex flex-wrap items-center gap-2">
           <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           {allGlobalTags.map((tag) => (
             <button
@@ -290,7 +292,7 @@ export function SearchPage() {
               清除筛选
             </button>
           )}
-        </div>
+        </div></details>
       )}
 
       {filteredResults.length > 0 ? (
@@ -308,7 +310,7 @@ export function SearchPage() {
                 <div
                   key={`${result.filePath}-${result.matchedMessageId || i}`}
                   onClick={() => handleResultClick(result)}
-                  className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer"
+                  className="bg-card border border-border rounded-lg p-3 hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="text-xs px-2 py-0.5 bg-muted rounded font-medium">
@@ -402,7 +404,7 @@ export function SearchPage() {
                       )
                     );
                   }}
-                  className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer"
+                  className="bg-card border border-border rounded-lg p-3 hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="text-xs px-2 py-0.5 bg-muted rounded font-medium">

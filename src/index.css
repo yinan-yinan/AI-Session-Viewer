@@ -26,21 +26,21 @@
 
 @layer base {
   :root {
-    --background: 210 14% 97%;
+    --background: 210 20% 98%;
     --foreground: 215 28% 14%;
-    --card: 210 12% 95.5%;
+    --card: 0 0% 100%;
     --card-foreground: 215 28% 14%;
     --primary: 190 78% 34%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 12% 93.5%;
     --secondary-foreground: 215 22% 15%;
     --muted: 210 11% 93.5%;
-    --muted-foreground: 215 10% 46%;
+    --muted-foreground: 215 12% 40%;
     --accent: 210 16% 90%;
     --accent-foreground: 215 22% 15%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 14% 87%;
+    --border: 214 18% 90%;
     --input: 210 14% 87%;
     --ring: 190 65% 40%;
     --radius: 0.5rem;
@@ -56,7 +56,7 @@
     --secondary: 220 18% 13.5%;
     --secondary-foreground: 210 14% 91%;
     --muted: 220 18% 11.5%;
-    --muted-foreground: 215 11% 55%;
+    --muted-foreground: 215 12% 65%;
     --accent: 215 20% 18%;
     --accent-foreground: 210 14% 89%;
     --destructive: 0 62.8% 30.6%;
@@ -217,3 +217,65 @@
 .no-select {
   user-select: none;
 }
+
+/* Shared workspace layout: quiet surfaces, explicit actions, content first. */
+@layer components {
+  .workspace-navigation { @apply relative z-40 h-full shrink-0; }
+  .navigation-link { @apply flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground; }
+  .navigation-link.is-active { @apply bg-accent/70 font-medium text-foreground; }
+  .toolbar-button { @apply inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50; }
+  .toolbar-primary { @apply toolbar-button border-transparent bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground; }
+  .workspace-page { @apply mx-auto w-full max-w-6xl p-4 sm:p-6; }
+  .workspace-page-header { @apply mb-5 flex flex-wrap items-center justify-between gap-3; }
+  .workspace-page-title { @apply text-xl font-semibold tracking-tight; }
+  .workspace-page-description { @apply mt-1 text-sm text-muted-foreground; }
+  .workspace-list-header { @apply shrink-0 border-b border-border bg-card px-4 pb-3 pt-5 sm:px-6; }
+  .workspace-list-body { @apply min-h-0 flex-1 overflow-auto px-4 pb-24 pt-4 sm:px-6; }
+  .workspace-filter { @apply mb-3 rounded-md border border-border bg-card; }
+  .workspace-filter > summary { @apply cursor-pointer px-3 py-2 text-xs font-medium text-muted-foreground; }
+  .workspace-filter > div { @apply border-t border-border p-3; }
+  .action-menu { @apply relative; }
+  .action-menu-panel { @apply absolute right-0 top-full z-50 mt-2 flex w-60 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg border border-border bg-card p-2 shadow-lg; }
+  .action-menu-panel > button { @apply flex min-h-9 w-full items-center justify-start gap-2 rounded-md px-3 py-2 text-left text-xs text-foreground hover:bg-accent; }
+  .action-menu-panel > label { @apply flex items-center justify-between gap-3 rounded-md px-3 py-2 text-xs hover:bg-accent; }
+  .action-menu-panel input { @apply accent-primary; }
+  .action-menu-panel > p { @apply px-3 py-1 text-[11px] font-medium text-muted-foreground; }
+  .message-workspace { @apply bg-card; }
+  .message-workspace .message-reading-pane { @apply border-transparent; }
+  .message-directory { @apply relative z-30 flex w-56 shrink-0 flex-col border-r border-border bg-card; }
+  .message-directory-backdrop { display: none; }
+}
+summary::-webkit-details-marker { display: none; }
+:where(button, a, select, input, textarea, summary, [tabindex='0']):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+@media (max-width: 1023px) {
+  .workspace-navigation { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); visibility: hidden; }
+  .workspace-navigation.is-open { transform: translateX(0); visibility: visible; }
+}
+@media (max-width: 1279px) {
+  .message-directory { position: absolute; inset: 0 auto 0 0; box-shadow: 8px 0 30px hsl(var(--foreground) / 0.08); }
+  .message-directory-backdrop { display: block; position: absolute; inset: 0; z-index: 20; background: rgb(0 0 0 / 0.2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@media (min-width: 768px) {
+  .project-list-view .project-card-details { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 1.5rem; }
+  .project-list-view .project-card-details > h3, .project-list-view .project-card-details > p { grid-column: 1; }
+  .project-list-view .project-card-tags { grid-column: 2; grid-row: 1 / span 2; margin: 0; align-self: center; padding-right: 1.5rem; }
+  .project-list-view .project-card-meta { grid-column: 1 / -1; }
+}
+@media (hover: none) {
+  .workspace-shell .group .group-hover\:opacity-100 { opacity: 1; }
+}
+.workspace-shell .group:focus-within .group-hover\:opacity-100 { opacity: 1; }
+
+.session-card-grid .session-card-content { flex-direction: column; align-items: stretch; }
+.session-card-menu { align-self: flex-end; }
+.session-card-grid .session-card-menu { position: absolute; right: 0.5rem; top: 0.5rem; }
+.session-card-grid .session-card-content > :first-child { padding-right: 3.5rem; }
+.session-card-grid .session-created-date { display: none; }
+.session-card-grid .session-card { border-top: 2px solid hsl(var(--primary) / 0.25); }

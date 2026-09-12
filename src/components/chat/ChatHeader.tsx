@@ -1,3 +1,4 @@
+import { ActionMenu } from "../common/ActionMenu";
 import { useMemo, useState } from "react";
 import { DEFAULT_CHAT_PANE_ID, useChatStore } from "../../stores/chatStore";
 import {
@@ -67,7 +68,7 @@ export function ChatHeader({
   }, [messages]);
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border bg-card">
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-border bg-card">
       {/* Source indicator */}
       <div className="flex items-center gap-1.5">
         {source === "omp" ? <OmpMark className="w-4 h-4" /> : <Bot className={`w-4 h-4 ${source === "codex" ? "text-green-500" : "text-orange-500"}`} />}
@@ -98,6 +99,8 @@ export function ChatHeader({
         </div>
       )}
 
+      <div className="flex-1" />
+      <ActionMenu label="详情">
       {/* Session ID (for CLI resume) */}
       {sessionId && (
         <button
@@ -118,7 +121,7 @@ export function ChatHeader({
 
       {/* Token stats */}
       {tokenStats.total > 0 && (
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground tabular-nums">
+        <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground tabular-nums">
           <Cpu className="w-3 h-3 shrink-0" />
           <span title="输入 tokens">入 {tokenStats.input.toLocaleString()}</span>
           <span className="opacity-30">|</span>
@@ -138,7 +141,9 @@ export function ChatHeader({
         </div>
       )}
 
-      <div className="flex-1" />
+
+
+      </ActionMenu>
 
       {/* Skip permissions toggle */}
       <button
@@ -166,7 +171,7 @@ export function ChatHeader({
         </span>
       </button>
 
-      <div className="flex items-center gap-1">
+      <ActionMenu label="显示">
         <button
           type="button"
           onClick={onExpandAll}
@@ -175,7 +180,7 @@ export function ChatHeader({
           title="全部展开"
         >
           <Rows3 className="w-3 h-3" />
-          <span className="hidden sm:inline">展开</span>
+          <span className="inline">展开</span>
         </button>
         <button
           type="button"
@@ -185,9 +190,9 @@ export function ChatHeader({
           title="全部折叠"
         >
           <ChevronsUpDown className="w-3 h-3" />
-          <span className="hidden sm:inline">折叠</span>
+          <span className="inline">折叠</span>
         </button>
-      </div>
+      </ActionMenu>
 
       {/* Streaming indicator */}
       {isStreaming && (

@@ -12,6 +12,7 @@ import { UpdateIndicator } from "./UpdateIndicator";
 import { ProjectActionsMenu } from "../project/ProjectActionsMenu";
 import { DeleteProjectDialog } from "../project/DeleteProjectDialog";
 import { NodeSelector } from "./NodeSelector";
+import { readRecentSessions, RECENT_SESSIONS_CHANGED } from "../../services/recentSessions";
 import { ClaudeMark, CodexMark, GrokMark, OmpMark } from "./ProviderMarks";
 import type { ProjectEntry } from "../../types";
 import { collapseDirectBuckets, DIRECT_GROUP_ID } from "../../utils/directChat";
@@ -48,6 +49,7 @@ import {
   FolderX,
   Repeat,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 
 declare const __IS_TAURI__: boolean;
@@ -86,41 +88,22 @@ function SourceNavigation({
   source,
   loading,
   onChange,
+  hiddenSources,
 }: {
   source: SessionSource;
   loading: boolean;
   onChange: (source: SessionSource) => void;
+  hiddenSources: SessionSource[];
 }) {
   return (
-    <div role="radiogroup" aria-label="会话来源" className="space-y-0.5">
-      {SOURCE_OPTIONS.map((option) => {
+    <div role="group" aria-label="会话来源" className="space-y-0.5">
+      {SOURCE_OPTIONS.filter((option) => !hiddenSources.includes(option.id)).map((option) => {
         const Icon = option.icon;
         const selected = option.id === source;
-        return (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            key={option.id}
-            onClick={() => onChange(option.id)}
-            className={`flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              selected
-                ? "bg-accent font-medium text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            }`}
-          >
-            <Icon className={`h-4 w-4 shrink-0 ${option.iconClass}`} />
-            <span className="min-w-0 flex-1 truncate text-left">{option.label}</span>
-            {selected && loading ? (
-              <Loader2
-                aria-label="正在加载项目"
-                className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground"
-              />
-            ) : selected ? (
-              <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            ) : null}
-          </button>
-        );
+        return <button key={option.id} type="button" aria-pressed={selected} onClick={() => onChange(option.id)} className={"navigation-link h-9 " + (selected ? "is-active" : "")}>
+          <Icon className={"h-4 w-4 shrink-0 " + option.iconClass} /><span>{option.label}</span>
+          {selected && (loading ? <Loader2 aria-label="正在加载项目" className="ml-auto h-3.5 w-3.5 animate-spin" /> : <Check className="ml-auto h-3.5 w-3.5" />)}
+        </button>;
       })}
     </div>
   );
@@ -134,6 +117,35 @@ export function Sidebar() {
   const { theme, setTheme } = useTheme();
   const { detectCli, availableClis, clearChat } = useChatStore();
   const [showSettings, setShowSettings] = useState(false);
+  const [projectQuery, setProjectQuery] = useState("");
+  const [hiddenSources, setHiddenSources] = useState<SessionSource[]>(() => {
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem("hiddenSessionSources") || "[]");
+      const hidden = SOURCE_OPTIONS.filter((option) => Array.isArray(stored) && stored.includes(option.id)).map((option) => option.id);
+      return hidden.length < SOURCE_OPTIONS.length ? hidden : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    if (hiddenSources.includes(source)) {
+      const next = SOURCE_OPTIONS.find((option) => !hiddenSources.includes(option.id));
+      if (next) { setSource(next.id); navigate("/projects"); }
+    }
+  }, [hiddenSources, source, setSource, navigate]);
+  const changeHiddenSources = (next: SessionSource[]) => {
+    if (next.length >= SOURCE_OPTIONS.length) return;
+    setHiddenSources(next);
+    localStorage.setItem("hiddenSessionSources", JSON.stringify(next));
+  };
+  const [recentSessions, setRecentSessions] = useState(readRecentSessions);
+  useEffect(() => {
+    const update = () => setRecentSessions(readRecentSessions());
+    window.addEventListener(RECENT_SESSIONS_CHANGED, update);
+    window.addEventListener("storage", update);
+    return () => {
+      window.removeEventListener(RECENT_SESSIONS_CHANGED, update);
+      window.removeEventListener("storage", update);
+    };
+  }, []);
   const [settingsTab, setSettingsTab] = useState<"guide" | "display" | "chat" | "update" | "about">("guide");
   const [projectActionsMenu, setProjectActionsMenu] = useState<{
     project: ProjectEntry;
@@ -195,147 +207,60 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 h-full border-r border-border bg-card flex flex-col shrink-0">
+    <aside className="w-60 h-full border-r border-border bg-secondary/40 flex flex-col shrink-0">
       {/* Header */}
-      <div className="border-b border-border px-3 py-3">
-        <h1 className="mb-2 px-2 text-sm font-semibold text-foreground">
+      <div className="px-3 pb-3 pt-4">
+        <h1 className="mb-4 px-1 text-sm font-semibold tracking-tight text-foreground">
           AI Session Viewer
         </h1>
         <SourceNavigation
           source={source}
           loading={projectsLoading}
           onChange={handleSourceChange}
+          hiddenSources={hiddenSources}
         />
-        <div className="mt-3 border-t border-border/70 pt-3">
+        <div className="mt-3 min-w-0 border-t border-border pt-3">
           <NodeSelector />
         </div>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2">
-        {/* Quick links */}
-        <div className="mb-4">
-          {source !== "grok" && (
-            <button
-              onClick={() => {
-                clearChat();
-                navigate("/chat");
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                location.pathname.startsWith("/chat")
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-              }`}
-            >
-              <MessageSquarePlus className="w-4 h-4" />
-              CLI 对话
-            </button>
-          )}
-          <button
-            onClick={() => navigate("/search")}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              isActive("/search")
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            }`}
-          >
-            <Search className="w-4 h-4" />
-            全局搜索
-          </button>
-          {source !== "grok" && source !== "omp" && (
-            <button
-              onClick={() => navigate("/stats")}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                isActive("/stats")
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              使用统计
-            </button>
-          )}
-          <button
-            onClick={() => navigate("/skills")}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              isActive("/skills")
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            Skills
-          </button>
-          <button
-            onClick={() => navigate("/bookmarks")}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              isActive("/bookmarks")
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            }`}
-          >
-            <Star className="w-4 h-4" />
-            收藏
-            {bookmarks.filter((b) => b.source === source).length > 0 && (
-              <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded-full">
-                {bookmarks.filter((b) => b.source === source).length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => navigate("/cleanup")}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              isActive("/cleanup")
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            }`}
-          >
-            <FolderX className="w-4 h-4" />
-            无效项管理
-          </button>
-          <button
-            onClick={() => navigate("/recyclebin")}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              isActive("/recyclebin")
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            }`}
-          >
-            <Trash2 className="w-4 h-4" />
-            回收站
-            {recycledItems.length > 0 && (
-              <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
-                {recycledItems.length}
-              </span>
-            )}
-          </button>
-          {source === "codex" && (
-            <button
-              onClick={() => navigate("/provider-sync")}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                isActive("/provider-sync")
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-              }`}
-            >
-              <Repeat className="w-4 h-4" />
-              Provider 同步
-            </button>
-          )}
+        <div className="mb-4 space-y-1">
+          {source !== "grok" && <button onClick={() => { clearChat(); navigate("/chat"); }} className="mb-3 flex w-full items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"><MessageSquarePlus className="h-4 w-4" />新建对话</button>}
+          {[
+            { path: "/projects", label: "所有项目", icon: FolderOpen },
+            { path: "/search", label: "搜索会话", icon: Search },
+            { path: "/bookmarks", label: "收藏", icon: Star },
+            ...(source === "claude" || source === "codex" ? [{ path: "/stats", label: "使用统计", icon: BarChart3 }] : []),
+          ].map(({ path, label, icon: Icon }) => (
+            <button key={path} onClick={() => navigate(path)} aria-current={isActive(path) ? "page" : undefined} className={"navigation-link " + (isActive(path) ? "is-active" : "")}><Icon className="h-4 w-4" />{label}{path === "/bookmarks" && <span className="ml-auto text-xs tabular-nums">{bookmarks.filter((b) => b.source === source).length || ""}</span>}</button>
+          ))}
         </div>
 
         {/* Projects list */}
+        {recentSessions.some((item) => item.source === source) && (
+          <div className="mb-4">
+            <h2 className="px-3 py-1 text-[11px] font-medium text-muted-foreground">最近浏览</h2>
+            {recentSessions.filter((item) => item.source === source).slice(0, 5).map((item) => (
+              <button key={item.filePath} className="navigation-link" title={item.title} onClick={() => navigate(`/projects/${encodeURIComponent(item.projectId)}/session/${encodeURIComponent(item.filePath)}`)}>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" /><span className="truncate">{item.title}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div>
-          <h2 className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <h2 className="px-3 py-1 text-[11px] font-medium text-muted-foreground">
             项目 ({projectsLoading ? "..." : sidebarProjects.length})
           </h2>
+          <input aria-label="筛选项目" value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="查找项目…" className="mx-2 my-2 w-[calc(100%-1rem)] rounded-md border border-border/70 bg-card px-2.5 py-1.5 text-xs placeholder:text-muted-foreground" />
           {projectsLoading ? (
             <div className="px-3 py-2 text-sm text-muted-foreground">
               加载中...
             </div>
           ) : (
             <div className="mt-1 space-y-0.5">
-              {sidebarProjects.map((project) => {
+              {sidebarProjects.filter((project) => !projectQuery.trim() || [project.alias, project.shortName, project.displayPath].some((value) => value?.toLowerCase().includes(projectQuery.trim().toLowerCase()))).map((project) => {
                 const isGroup = project.id === DIRECT_GROUP_ID;
                 const active = isGroup
                   ? isDirectGroupActive
@@ -399,6 +324,18 @@ export function Sidebar() {
         </div>
       </nav>
 
+      <details key={location.pathname} open={["/skills", "/cleanup", "/recyclebin", "/provider-sync"].includes(location.pathname)} className="mx-2 mb-2 border-t border-border pt-2">
+        <summary className="navigation-link cursor-pointer list-none"><Settings className="h-4 w-4" />工具与管理<ChevronDown className="ml-auto h-3.5 w-3.5" /></summary>
+        <div className="mt-1 space-y-0.5 pl-2">
+          {[
+            { path: "/skills", label: "Skills", icon: Sparkles },
+            { path: "/cleanup", label: "无效项管理", icon: FolderX },
+            { path: "/recyclebin", label: recycledItems.length ? "回收站 · " + recycledItems.length : "回收站", icon: Trash2 },
+            ...(source === "codex" ? [{ path: "/provider-sync", label: "Provider 同步", icon: Repeat }] : []),
+          ].map(({ path, label, icon: Icon }) => <button key={path} onClick={() => navigate(path)} aria-current={isActive(path) ? "page" : undefined} className={"navigation-link " + (isActive(path) ? "is-active" : "")}><Icon className="h-3.5 w-3.5" />{label}</button>)}
+        </div>
+      </details>
+
       {/* Footer */}
       <div className="p-3 border-t border-border">
         <div className="flex items-center justify-between">
@@ -461,13 +398,14 @@ export function Sidebar() {
               <h2 className="text-sm font-semibold text-foreground">设置</h2>
               <button
                 onClick={() => setShowSettings(false)}
+                aria-label="关闭设置"
                 className="p-1 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent/50"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             {/* Tabs */}
-            <div className="flex border-b border-border">
+            <div className="flex overflow-x-auto border-b border-border">
               <button
                 onClick={() => setSettingsTab("guide")}
                 className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
@@ -526,7 +464,7 @@ export function Sidebar() {
               {settingsTab === "chat" ? (
                 <ChatSettingsTab />
               ) : settingsTab === "display" ? (
-                <DisplaySettingsTab />
+                <DisplaySettingsTab hiddenSources={hiddenSources} onHiddenSourcesChange={changeHiddenSources} />
               ) : settingsTab === "update" && __IS_TAURI__ ? (
                 <div className="p-4">
                   <UpdateIndicator />
@@ -536,7 +474,8 @@ export function Sidebar() {
                   <section>
                     <h3 className="font-medium mb-1.5">侧边栏</h3>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                      <li>通过侧边栏顶部的来源列表切换 Claude / Codex / Grok</li>
+                      <li>通过侧边栏顶部的纵向列表切换 Claude / Codex / Grok / Oh My Pi</li>
+                      <li>在显示设置中选择侧栏显示哪些 Agent；工具与管理位于侧栏底部</li>
                       <li>项目列表点击进入对应项目的会话列表</li>
                       <li>快捷入口：全局搜索、使用统计、无效项管理、回收站</li>
                     </ul>
@@ -552,8 +491,8 @@ export function Sidebar() {
                     <h3 className="font-medium mb-1.5">会话列表</h3>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                       <li>点击卡片查看消息详情</li>
-                      <li>悬停显示操作：🏷编辑标签、▶Resume、复制命令、🗑删除</li>
-                      <li>桌面端可直接点 Resume，或点“复制命令”到剪贴板</li>
+                      <li>卡片“操作”菜单提供收藏、标签编辑、续聊命令、导出和删除</li>
+                      <li>会话页点“继续对话”展开输入框；“详情”中可打开终端或复制续聊命令</li>
                       <li>标签筛选快速定位会话</li>
                     </ul>
                   </section>
@@ -561,7 +500,7 @@ export function Sidebar() {
                     <h3 className="font-medium mb-1.5">消息详情</h3>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                       <li>向上滚动自动加载更早消息</li>
-                      <li>顶栏可切换时间戳 / 模型显示</li>
+                      <li>顶栏“显示”菜单可切换时间戳 / 模型显示</li>
                       <li>浮动按钮快速跳转到顶部或底部</li>
                     </ul>
                   </section>
@@ -733,7 +672,10 @@ export function Sidebar() {
   );
 }
 
-function DisplaySettingsTab() {
+function DisplaySettingsTab({ hiddenSources, onHiddenSourcesChange }: {
+  hiddenSources: SessionSource[];
+  onHiddenSourcesChange: (next: SessionSource[]) => void;
+}) {
   const timeZone = useAppStore((state) => state.timeZone);
   const setTimeZone = useAppStore((state) => state.setTimeZone);
   const systemTimeZone = useMemo(getSystemTimeZone, []);
@@ -741,6 +683,14 @@ function DisplaySettingsTab() {
 
   return (
     <div className="p-4 space-y-3 text-sm">
+      <fieldset className="space-y-2 border-b border-border pb-4">
+        <legend className="mb-2 font-medium">侧栏显示的 Agent</legend>
+        <p className="text-xs text-muted-foreground">隐藏不常用的来源，至少保留一个。隐藏不会删除会话数据。</p>
+        {SOURCE_OPTIONS.map((option) => <label key={option.id} className="flex items-center justify-between gap-3 rounded px-1 py-1">
+          <span>{option.label}</span>
+          <input type="checkbox" className="accent-primary" checked={!hiddenSources.includes(option.id)} disabled={!hiddenSources.includes(option.id) && hiddenSources.length === SOURCE_OPTIONS.length - 1} onChange={(event) => onHiddenSourcesChange(event.target.checked ? hiddenSources.filter((id) => id !== option.id) : [...hiddenSources, option.id])} />
+        </label>)}
+      </fieldset>
       <label className="block space-y-1.5">
         <span className="font-medium text-foreground">时区</span>
         <select

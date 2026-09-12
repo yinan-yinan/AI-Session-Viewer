@@ -113,8 +113,8 @@ export const UserMessage = memo(function UserMessage({
       : "展开此消息";
 
   return (
-    <div className={`flex ${isThreadLayout ? "justify-start" : "justify-end"}`}>
-      <div className={isThreadLayout ? "w-full" : isShortPreview ? "w-fit" : "max-w-[85%]"}>
+    <div className="flex justify-start">
+      <div className="w-full">
         {threadHint && (
           <div className={`mb-1 text-[11px] text-muted-foreground ${isThreadLayout ? "text-left" : "text-right"}`}>
             {threadHint}
@@ -123,9 +123,9 @@ export const UserMessage = memo(function UserMessage({
         {!expanded ? (
           <button
             onClick={handleExpandFromPreview}
-            className={`group items-center gap-2 rounded-2xl border border-dashed px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-accent ${
+            className={`group items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-foreground/85 transition-colors hover:bg-accent ${
               isShortPreview ? "inline-flex" : "flex w-full max-w-full"
-            } ${hue ? `${hue.border} ${hue.previewBg}` : "border-primary/30 bg-primary/5"}`}
+            } ${hue ? "border-border/40 bg-muted/40" : "border-primary/30 bg-primary/5"}`}
             title={foldTitle}
           >
             {hue && questionIndex !== undefined && (
@@ -147,11 +147,11 @@ export const UserMessage = memo(function UserMessage({
           </button>
         ) : (
           <div
-            className={`relative overflow-hidden rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-              hue ? `${hue.bubbleBg} border-l-[3px] ${hue.border}` : "bg-primary/10"
+            className={`relative overflow-hidden rounded-lg px-4 py-3 text-sm leading-relaxed ${
+              hue ? "bg-muted/40 border-l-2 border-primary/30" : "bg-primary/10"
             }`}
           >
-            <div className="mb-1.5 flex items-center gap-2">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
               {hue && questionIndex !== undefined && (
                 <span
                   className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 font-mono text-[10px] text-white ${hue.swatch}`}
@@ -175,7 +175,7 @@ export const UserMessage = memo(function UserMessage({
                 {hasCopyContent && (
                   <button
                     onClick={handleCopy}
-                    className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                     title={hasTextContent ? "复制全部内容" : "复制 Tool Result"}
                   >
                     {copied ? (
@@ -193,7 +193,7 @@ export const UserMessage = memo(function UserMessage({
                 )}
                 <button
                   onClick={handleToggleAll}
-                  className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                   title={foldTitle}
                 >
                   <ChevronUp className="w-3 h-3" />

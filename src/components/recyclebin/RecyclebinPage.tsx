@@ -145,11 +145,11 @@ export function RecyclebinPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-3">
+      <div className="workspace-list-header">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <Trash2 className="w-5 h-5 text-muted-foreground" />
-            <h1 className="text-base font-semibold text-foreground">回收站</h1>
+            <h1 className="workspace-page-title">回收站</h1>
             {recycledItems.length > 0 && (
               <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
                 {recycledItems.length} 项
@@ -309,7 +309,7 @@ export function RecyclebinPage() {
           >
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
-              <h3 className="text-base font-semibold text-foreground">清空回收站</h3>
+              <h3 className="workspace-page-title">清空回收站</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-5">
               将永久删除回收站中的全部 {recycledItems.length} 项内容，此操作无法撤销。

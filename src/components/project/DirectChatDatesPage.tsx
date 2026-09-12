@@ -38,7 +38,7 @@ export function DirectChatDatesPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 pt-6 shrink-0">
+      <div className="workspace-list-header">
         <button
           onClick={() => navigate("/projects")}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
@@ -46,14 +46,14 @@ export function DirectChatDatesPage() {
           <ArrowLeft className="w-4 h-4" />
           所有项目
         </button>
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
           <FolderClock className="w-6 h-6 text-muted-foreground" />
-          <h1 className="text-2xl font-bold">Codex 直连对话</h1>
+          <h1 className="workspace-page-title">Codex 直连对话</h1>
           <span className="text-sm text-muted-foreground">（按日期归档）</span>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="workspace-list-body">
         {projectsLoading && buckets.length === 0 ? (
           <div className="text-sm text-muted-foreground">加载中...</div>
         ) : buckets.length === 0 ? (

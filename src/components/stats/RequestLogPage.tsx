@@ -147,7 +147,7 @@ export function RequestLogPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-3 flex items-center gap-3">
+      <div className="border-b border-border bg-card px-4 py-3 flex flex-wrap items-center gap-3">
         <button
           onClick={() => navigate("/stats")}
           className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
@@ -156,7 +156,7 @@ export function RequestLogPage() {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <Receipt className="w-5 h-5 text-muted-foreground" />
-        <h1 className="text-lg font-semibold">逐请求账单</h1>
+        <h1 className="workspace-page-title">逐请求账单</h1>
         <span className="text-xs text-muted-foreground">
           ({source === "claude" ? "Claude" : "Codex"})
         </span>
@@ -243,6 +243,8 @@ export function RequestLogPage() {
         )}
       </div>
 
+      <div className="min-h-0 flex-1 overflow-x-auto">
+      <div className="flex h-full min-w-[1100px] flex-col">
       {/* Table header */}
       <div className="grid grid-cols-[10rem_1fr_10rem_8rem_5rem_5rem_5rem_5rem_4.5rem_5rem] gap-2 px-6 py-2 text-[11px] font-medium text-muted-foreground bg-muted/40 border-b border-border sticky top-0 z-10">
         <span>时间</span>
@@ -329,6 +331,8 @@ export function RequestLogPage() {
             })}
           </div>
         )}
+      </div>
+      </div>
       </div>
     </div>
   );

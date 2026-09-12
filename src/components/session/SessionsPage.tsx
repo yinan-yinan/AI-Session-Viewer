@@ -1,3 +1,4 @@
+import { ActionMenu } from "../common/ActionMenu";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -210,10 +211,26 @@ export function SessionsPage() {
   // 列表虚拟化：只渲染可见行，几百/上千会话也能秒切、流畅滚动。卡片变高，用
   // measureElement 动态测量。滚动容器是下方 flex-1 区域。
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [sessionView, setSessionView] = useState(() => localStorage.getItem("sessionLayout") === "list" ? "list" : "grid");
+  const [cols, setCols] = useState(3);
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const update = () => setCols(sessionView === "list" ? 1 : Math.min(4, Math.max(1, Math.floor((container.clientWidth - 48) / 280))));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [sessionView]);
+  const sessionRows = useMemo(() => {
+    const rows: SessionIndexEntry[][] = [];
+    for (let i = 0; i < filteredSessions.length; i += cols) rows.push(filteredSessions.slice(i, i + cols));
+    return rows;
+  }, [filteredSessions, cols]);
   const rowVirtualizer = useVirtualizer({
-    count: filteredSessions.length,
+    count: sessionRows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 96,
+    estimateSize: () => sessionView === "grid" ? 132 : 112,
     overscan: 8,
   });
 
@@ -268,9 +285,9 @@ export function SessionsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 pt-6 shrink-0">
+      <div className="workspace-list-header">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="workspace-page-header">
         <button
           onClick={() =>
             navigate(projectId.startsWith("<codex-direct>/") ? "/direct-chat" : "/projects")
@@ -279,17 +296,18 @@ export function SessionsPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold">
+        <div className="min-w-0 flex-1">
+          <h1 className="workspace-page-title truncate">
             {project?.shortName || projectId}
           </h1>
           {project && (
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="mt-1 truncate text-xs text-muted-foreground">
               {project.displayPath}
             </p>
           )}
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <select aria-label="会话显示方式" className="toolbar-button" value={sessionView} onChange={(event) => { setSessionView(event.target.value); localStorage.setItem("sessionLayout", event.target.value); }}><option value="grid">网格</option><option value="list">列表</option></select>
           {emptySessions.length > 0 && (
             <button
               onClick={() => {
@@ -345,7 +363,8 @@ export function SessionsPage() {
 
       {/* Tag filter bar */}
       {allTags.length > 0 && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <details className="workspace-filter"><summary>标签筛选{tagFilter.length > 0 ? " · 已选 " + tagFilter.length : ""}</summary>
+        <div className="flex flex-wrap items-center gap-2">
           <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           {allTags.map((tag) => (
             <button
@@ -368,7 +387,7 @@ export function SessionsPage() {
               清除筛选
             </button>
           )}
-        </div>
+        </div></details>
       )}
 
       {/* Resume error toast */}
@@ -386,7 +405,7 @@ export function SessionsPage() {
       </div>
 
       {/* Sessions list（虚拟化滚动容器） */}
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto px-6 pt-2 pb-24">
+      <div ref={scrollRef} className="workspace-list-body">
       {sessionsLoading ? (
         <ScanProgressView label="加载会话列表" />
       ) : filteredSessions.length === 0 ? (
@@ -398,10 +417,10 @@ export function SessionsPage() {
       ) : (
         <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative", width: "100%" }}>
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const session = filteredSessions[virtualRow.index];
             return (
             <div
-              key={session.sessionId}
+              key={virtualRow.index}
+              className="focus-within:z-30"
               data-index={virtualRow.index}
               ref={rowVirtualizer.measureElement}
               style={{
@@ -410,10 +429,16 @@ export function SessionsPage() {
                 left: 0,
                 width: "100%",
                 transform: `translateY(${virtualRow.start}px)`,
-                paddingBottom: "0.5rem",
+                paddingBottom: "0.75rem",
               }}
             >
+            <div className={"grid gap-3 " + (sessionView === "grid" ? "session-card-grid" : "")} style={{ gridTemplateColumns: "repeat(" + cols + ", minmax(0, 1fr))" }}>
+            {sessionRows[virtualRow.index].map((session) => (
             <div
+              key={session.filePath}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); event.currentTarget.click(); } }}
               onClick={() => {
                 if (selectMode) {
                   toggleSelected(session.filePath);
@@ -423,13 +448,13 @@ export function SessionsPage() {
                   `/projects/${encodeURIComponent(projectId)}/session/${encodeURIComponent(session.filePath)}`
                 );
               }}
-              className={`bg-card border rounded-lg p-4 hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer group ${
+              className={`session-card relative bg-card border rounded-lg p-3 hover:border-primary/50 hover:bg-accent/30 transition-colors cursor-pointer group ${
                 selected.has(session.filePath)
                   ? "border-primary bg-primary/5"
                   : "border-border"
               }`}
             >
-              <div className="flex items-center justify-between gap-4">
+              <div className="session-card-content flex flex-col items-stretch justify-between gap-3 xl:flex-row xl:items-center">
                 <input
                   type="checkbox"
                   checked={selected.has(session.filePath)}
@@ -484,7 +509,7 @@ export function SessionsPage() {
                       </span>
                     )}
                     {session.created && (
-                      <span className="text-muted-foreground/60">
+                      <span className="session-created-date text-muted-foreground/60">
                         创建于 {dateMap.get(session.sessionId)?.created}
                       </span>
                     )}
@@ -495,11 +520,8 @@ export function SessionsPage() {
                     )}
                   </div>
                 </div>
-                <div
-                  className={`shrink-0 flex items-center gap-1.5 transition-opacity ${
-                    selectMode ? "hidden" : "opacity-0 group-hover:opacity-100"
-                  }`}
-                >
+                <div className={"session-card-menu " + (selectMode ? "hidden" : "")} onClick={(event) => event.stopPropagation()}>
+                  <ActionMenu label="操作">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -529,7 +551,7 @@ export function SessionsPage() {
                     }`}
                     title={isBookmarked(session.sessionId) ? "取消收藏" : "收藏会话"}
                   >
-                    <Star className={`w-3.5 h-3.5 ${isBookmarked(session.sessionId) ? "fill-current" : ""}`} />
+                    <Star className={`w-3.5 h-3.5 ${isBookmarked(session.sessionId) ? "fill-current" : ""}`} />{isBookmarked(session.sessionId) ? "取消收藏" : "收藏会话"}
                   </button>
                   <button
                     onClick={(e) => {
@@ -539,7 +561,7 @@ export function SessionsPage() {
                     className="p-1.5 text-xs text-muted-foreground rounded-md hover:bg-accent hover:text-foreground transition-colors"
                     title="编辑标签和别名"
                   >
-                    <Tag className="w-3.5 h-3.5" />
+                    <Tag className="w-3.5 h-3.5" />编辑标签和别名
                   </button>
                   {source === "codex" && (
                     <button
@@ -550,7 +572,7 @@ export function SessionsPage() {
                       className="p-1.5 text-xs text-muted-foreground rounded-md hover:bg-accent hover:text-foreground transition-colors"
                       title="克隆到其他 Provider（非破坏式）"
                     >
-                      <CopyPlus className="w-3.5 h-3.5" />
+                      <CopyPlus className="w-3.5 h-3.5" />克隆到其他 Provider
                     </button>
                   )}
                   {(source === "claude" || source === "codex" || source === "omp") && (
@@ -567,7 +589,7 @@ export function SessionsPage() {
                       title={__IS_TAURI__ ? "在终端中恢复此会话" : "复制恢复命令"}
                     >
                       {__IS_TAURI__ ? (
-                        <><Play className="w-3 h-3" />Resume</>
+                        <><Play className="w-3 h-3" />终端续聊</>
                       ) : (
                         <>{copiedId === session.sessionId ? "已复制" : <><Copy className="w-3 h-3" />复制命令</>}</>
                       )}
@@ -594,7 +616,7 @@ export function SessionsPage() {
                     className="p-1.5 text-xs text-muted-foreground rounded-md hover:bg-accent hover:text-foreground transition-colors"
                     title="导出此会话"
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <Download className="w-3.5 h-3.5" />导出会话
                   </button>
                   <button
                     onClick={(e) => {
@@ -605,10 +627,13 @@ export function SessionsPage() {
                     className="p-1.5 text-xs text-muted-foreground rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors"
                     title="删除此会话"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" />删除会话
                   </button>
+                  </ActionMenu>
                 </div>
               </div>
+            </div>
+            ))}
             </div>
             </div>
             );

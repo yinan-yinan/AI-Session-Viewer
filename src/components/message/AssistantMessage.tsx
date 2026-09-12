@@ -30,7 +30,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   layout = "default",
 }: Props) {
   const timeZone = useAppStore((state) => state.timeZone);
-  const assistantName = source === "codex" ? "Codex" : source === "omp" ? "Oh My Pi" : "Claude";
+  const assistantName = source === "codex" ? "Codex" : source === "omp" ? "Oh My Pi" : source === "grok" ? "Grok" : "Claude";
   const iconColor = source === "codex" ? "text-green-500" : source === "omp" ? "text-fuchsia-500" : "text-orange-500";
   const iconBg = source === "codex" ? "bg-green-500/10" : source === "omp" ? "bg-fuchsia-500/10" : "bg-orange-500/10";
   const [copied, setCopied] = useState(false);
@@ -126,7 +126,7 @@ export const AssistantMessage = memo(function AssistantMessage({
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <div className={`mb-1 flex gap-2 ${isThreadLayout ? "items-center flex-wrap" : "items-baseline"}`}>
+        <div className={`mb-1 flex gap-2 ${isThreadLayout ? "items-center flex-wrap" : "items-center flex-wrap"}`}>
           {metaContent}
           {copyButton}
         </div>
@@ -138,7 +138,7 @@ export const AssistantMessage = memo(function AssistantMessage({
         {!messageExpanded ? (
           <button
             onClick={() => setMessageExpanded(true)}
-            className="block w-full rounded-xl border border-dashed border-border bg-muted/30 px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/60 transition-colors"
+            className="block w-full rounded-md bg-muted/30 px-3 py-2 text-left text-sm text-foreground/85 hover:bg-muted/60 transition-colors"
             title="展开此回复"
           >
             <span className="line-clamp-2">{previewText}</span>

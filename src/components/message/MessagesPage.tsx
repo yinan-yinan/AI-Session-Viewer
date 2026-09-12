@@ -12,7 +12,9 @@ import { useShallow } from "zustand/react/shallow";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAppStore } from "../../stores/appStore";
 import { useChatStore } from "../../stores/chatStore";
-import { ArrowLeft, Play, Copy, Loader2, ArrowDown, ArrowUp, Clock, Cpu, AlertCircle, Tag, Plus, X, Rows3, ChevronsUpDown, Columns2, Rows2, ListTree, MessageSquare, Activity } from "lucide-react";
+import { ArrowLeft, Play, Copy, Loader2, ArrowDown, ArrowUp, AlertCircle, Tag, Plus, X, Rows3, ChevronsUpDown, Columns2, ListTree, MessageSquare } from "lucide-react";
+import { ActionMenu } from "../common/ActionMenu";
+import { rememberSession } from "../../services/recentSessions";
 import { MessageThread } from "./MessageThread";
 import { ThreadSummaryView } from "./ThreadSummaryView";
 import { SelectionReplyButton } from "./SelectionReplyButton";
@@ -443,12 +445,14 @@ export function MessagesPage() {
   const [splitDirection, setSplitDirection] = useState<SplitDirection>("horizontal");
   const [viewMode, setViewMode] = useState<"messages" | "thread" | "trajectory">("messages");
   const [tocCollapsed, setTocCollapsed] = useState<boolean>(
-    () => localStorage.getItem("messageTocCollapsed") === "true"
+    () => localStorage.getItem("messageTocCollapsed") !== "false"
   );
   const handleToggleToc = useCallback((next: boolean) => {
     setTocCollapsed(next);
     localStorage.setItem("messageTocCollapsed", String(next));
   }, []);
+  const [composerOpen, setComposerOpen] = useState(() => localStorage.getItem("messageComposerOpen") === "true");
+  const setComposerVisible = (open: boolean) => { setComposerOpen(open); localStorage.setItem("messageComposerOpen", String(open)); };
   const [questionIndex, setQuestionIndex] = useState<QuestionIndexEntry[]>([]);
   const mainPaneId = useMemo(() => getMessagesPaneId(filePath), [filePath]);
   const activePaneId = useChatStore((state) => state.activePaneId);
@@ -567,7 +571,7 @@ export function MessagesPage() {
     return () => {
       cancelled = true;
     };
-  }, [filePath]);
+  }, [filePath, source, projectId]);
 
   useEffect(() => {
     if (!filePath) {
@@ -977,6 +981,12 @@ export function MessagesPage() {
 
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (filePath && resolvedSessionId && resolvedSessionTitle) {
+      rememberSession({ source, projectId, filePath, title: resolvedSessionTitle });
+    }
+  }, [filePath, resolvedSessionId, resolvedSessionTitle, projectId, source]);
+
   const getResumeCommand = () => {
     if (!resolvedSessionId) return "";
     return source === "claude"
@@ -1120,12 +1130,13 @@ export function MessagesPage() {
   );
 
   return (
-    <div className="flex flex-col h-dvh max-h-dvh relative overflow-hidden">
+    <div className="message-workspace flex h-full min-h-0 flex-col relative overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="shrink-0 border-b border-border bg-card px-4 py-3 flex flex-wrap items-center justify-between gap-3 sm:px-5">
+        <div className="flex flex-1 items-center gap-2 min-w-0 basis-60">
           <button
             onClick={() => navigate(`/projects/${encodeURIComponent(projectId)}`)}
+            aria-label="返回会话列表"
             className="p-1 rounded hover:bg-accent transition-colors shrink-0"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -1163,150 +1174,32 @@ export function MessagesPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {supportsCli && filePath && <SessionCostBadge filePath={filePath} />}
-          <button
-            onClick={toggleTimestamp}
-            className={`p-1.5 rounded transition-colors ${
-              showTimestamp ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}
-            title="显示时间"
-          >
-            <Clock className="w-3.5 h-3.5" />
-          </button>
-          {source === "codex" && (
-            <button
-              onClick={() => setViewMode((prev) => (prev === "trajectory" ? "messages" : "trajectory"))}
-              className={`px-2 py-1.5 rounded text-xs flex items-center gap-1 transition-colors ${
-                viewMode === "trajectory"
-                  ? "bg-primary/15 text-primary hover:bg-primary/20"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
-              }`}
-              title={viewMode === "trajectory" ? "返回消息视图" : "打开 Codex 轨迹视图"}
-            >
-              <Activity className="w-3.5 h-3.5" />
-              轨迹
-            </button>
-          )}
-          <button
-            onClick={toggleModel}
-            className={`p-1.5 rounded transition-colors ${
-              showModel ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}
-            title="显示模型"
-          >
-            <Cpu className="w-3.5 h-3.5" />
-          </button>
-          {resolvedSessionId && (
-            <button
-              onClick={() => setEditingSession(true)}
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="编辑标签和别名"
-            >
-              <Tag className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            onClick={() => setShowSplitPicker((v) => !v)}
-            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            title="分屏查看其他会话"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-          {splitFilePaths.length > 0 && (
-            <button
-              onClick={() =>
-                setSplitDirection((prev) => (prev === "horizontal" ? "vertical" : "horizontal"))
-              }
-              className={`px-2 py-1.5 rounded text-xs flex items-center gap-1 transition-colors ${
-                splitDirection === "horizontal"
-                  ? "bg-primary/15 text-primary hover:bg-primary/20"
-                  : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400"
-              }`}
-              title={splitDirection === "horizontal" ? "切换为上下分屏" : "切换为左右分屏"}
-            >
-              {splitDirection === "horizontal" ? (
-                <>
-                  <Columns2 className="w-3.5 h-3.5" />
-                  左右分屏
-                </>
-              ) : (
-                <>
-                  <Rows2 className="w-3.5 h-3.5" />
-                  上下分屏
-                </>
-              )}
-            </button>
-          )}
-          <button
-            onClick={() => setViewMode((prev) => (prev === "thread" ? "messages" : "thread"))}
-            className={`px-2 py-1.5 rounded text-xs flex items-center gap-1 transition-colors ${
-              viewMode === "thread"
-                ? "bg-primary/15 text-primary hover:bg-primary/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-            }`}
-            title={viewMode === "thread" ? "返回消息视图" : "打开 Thread 视图（用户提问摘要）"}
-          >
-            {viewMode === "thread" ? (
-              <>
-                <MessageSquare className="w-3.5 h-3.5" />
-                消息视图
-              </>
-            ) : (
-              <>
-                <ListTree className="w-3.5 h-3.5" />
-                Thread
-              </>
-            )}
-          </button>
-          <button
-            onClick={() => {
-              setAllExpandedPersist(true);
-              setExpandVersion((v) => v + 1);
-            }}
-            className={`p-1.5 rounded transition-colors ${
-              allExpanded ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-accent"
-            }`}
-            title="全部展开（默认值已记住）"
-          >
-            <Rows3 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => {
-              setAllExpandedPersist(false);
-              setExpandVersion((v) => v + 1);
-            }}
-            className={`p-1.5 rounded transition-colors ${
-              !allExpanded ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-accent"
-            }`}
-            title="全部折叠（默认值已记住）"
-          >
-            <ChevronsUpDown className="w-3.5 h-3.5" />
-          </button>
-          {supportsResume && (
-            <>
-              <button
-                onClick={handleResume}
-                className="ml-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 flex items-center gap-1"
-                title={USE_TAURI_TRANSPORT ? "在终端中恢复此会话" : "复制恢复命令"}
-              >
-                {USE_TAURI_TRANSPORT ? (
-                  <><Play className="w-3 h-3" />Resume</>
-                ) : (
-                  <>{copied ? "已复制" : <><Copy className="w-3 h-3" />复制命令</>}</>
-                )}
-              </button>
-              {USE_TAURI_TRANSPORT && (
-                <button
-                  onClick={handleCopyCommand}
-                  className="px-3 py-1.5 text-xs border border-border text-muted-foreground rounded-md hover:bg-accent hover:text-foreground flex items-center gap-1"
-                  title="复制恢复命令"
-                >
-                  {copied ? <>已复制</> : <><Copy className="w-3 h-3" />复制命令</>}
-                </button>
-              )}
-            </>
-          )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {viewMode === "messages" && questionTocItems.length > 0 && !matchedOnly && <button id="message-directory-toggle" className="toolbar-button" aria-expanded={!tocCollapsed} onClick={() => handleToggleToc(!tocCollapsed)}><ListTree className="h-3.5 w-3.5" />目录 · {questionTocItems.length}</button>}
+          <select aria-label="阅读视图" value={viewMode} onChange={(event) => setViewMode(event.target.value as "messages" | "thread" | "trajectory")} className="toolbar-button pr-1">
+            <option value="messages">消息</option><option value="thread">提问汇总</option>{source === "codex" && <option value="trajectory">轨迹</option>}
+          </select>
+          <ActionMenu label="显示">
+            <label><span>消息时间</span><input type="checkbox" checked={showTimestamp} onChange={toggleTimestamp} /></label>
+            <label><span>模型名称</span><input type="checkbox" checked={showModel} onChange={toggleModel} /></label>
+            <button onClick={() => { setAllExpandedPersist(true); setExpandVersion((v) => v + 1); }}><Rows3 className="h-4 w-4" />展开全部消息</button>
+            <button onClick={() => { setAllExpandedPersist(false); setExpandVersion((v) => v + 1); }}><ChevronsUpDown className="h-4 w-4" />折叠全部消息</button>
+            <div className="my-1 border-t border-border" />
+            <button onClick={() => setShowSplitPicker((v) => !v)}><Plus className="h-4 w-4" />分屏查看其他会话</button>
+            {splitFilePaths.length > 0 && <button onClick={() => setSplitDirection((prev) => prev === "horizontal" ? "vertical" : "horizontal")}><Columns2 className="h-4 w-4" />{splitDirection === "horizontal" ? "改为上下分屏" : "改为左右分屏"}</button>}
+          </ActionMenu>
+          <ActionMenu label="详情">
+            <p>会话信息</p>
+            {supportsCli && filePath && <div className="px-3 py-2"><SessionCostBadge filePath={filePath} /></div>}
+            {resolvedSessionId && <button onClick={() => setEditingSession(true)}><Tag className="h-4 w-4" />编辑标签和别名</button>}
+            {supportsResume && <button onClick={handleCopyCommand}><Copy className="h-4 w-4" />{copied ? "已复制" : "复制续聊命令"}</button>}
+            {supportsResume && USE_TAURI_TRANSPORT && <button onClick={handleResume}><Play className="h-4 w-4" />在终端打开</button>}
+          </ActionMenu>
+          {resolvedSessionId && cliAvailable ? (
+            <button className="toolbar-primary" onClick={() => { setViewMode("messages"); setComposerVisible(true); requestAnimationFrame(() => chatInputRef.current?.focus()); }}><MessageSquare className="h-3.5 w-3.5" />继续对话</button>
+          ) : supportsResume && resolvedSessionId ? (
+            <button className="toolbar-primary" onClick={handleResume}>{USE_TAURI_TRANSPORT ? <Play className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}{USE_TAURI_TRANSPORT ? "终端续聊" : copied ? "已复制" : "复制续聊命令"}</button>
+          ) : null}
         </div>
       </div>
 
@@ -1406,17 +1299,20 @@ export function MessagesPage() {
       )}
 
       <ExpandAllProvider value={{ expanded: allExpanded, version: expandVersion }}>
-        <div className="flex-1 min-h-0 flex min-w-0">
-          {viewMode === "messages" && questionTocItems.length > 0 && !matchedOnly && (
-            <div className="relative z-10 shrink-0 py-3 pl-3 flex items-stretch">
+        <div className="relative flex-1 min-h-0 flex min-w-0">
+          {viewMode === "messages" && questionTocItems.length > 0 && !matchedOnly && !tocCollapsed && (
+            <>
+            <button className="message-directory-backdrop" aria-label="关闭提问目录" onClick={() => handleToggleToc(true)} />
+            <div className="message-directory" onKeyDown={(event) => { if (event.key === "Escape") { handleToggleToc(true); document.getElementById("message-directory-toggle")?.focus(); } }}>
               <MessageTOCSidebar
                 items={questionTocItems}
                 activeId={activeUserMsgId}
-                onSelect={handleQuestionSelect}
+                onSelect={(id) => { handleQuestionSelect(id); if (window.matchMedia("(max-width: 1279px)").matches) handleToggleToc(true); }}
                 collapsed={tocCollapsed}
                 onToggleCollapsed={handleToggleToc}
               />
             </div>
+            </>
           )}
           <div
           className={`flex-1 min-w-0 ${
@@ -1429,7 +1325,7 @@ export function MessagesPage() {
           onClickCapture={splitScrollDrag.onClickCapture}
         >
           <div
-            className={`gap-3 p-3 ${
+            className={`gap-2 p-0 ${
               isSplitHorizontal
                 ? "flex min-h-full min-w-full w-max"
                 : "flex min-h-full min-w-0 flex-col"
@@ -1441,7 +1337,7 @@ export function MessagesPage() {
                   setActivePane(mainPaneId);
                 }
               }}
-              className={`relative flex flex-col rounded-lg border bg-card transition-colors ${
+              className={`message-reading-pane relative flex flex-col border bg-card transition-colors ${
                 splitFilePaths.length > 0 && activePaneId === mainPaneId
                   ? "border-primary ring-1 ring-primary/40 shadow-[0_0_0_1px_hsl(var(--primary)/0.4)]"
                   : "border-border"
@@ -1589,7 +1485,12 @@ export function MessagesPage() {
 
       {/* Chat input */}
       {resolvedSessionId && cliAvailable && viewMode === "messages" && (
-        <div className="shrink-0">
+        <div className="shrink-0 border-t border-border bg-card">
+          <div className="flex items-center justify-between gap-2 px-4 py-2 text-xs text-muted-foreground">
+            <span>{chatStreaming ? "正在回复…" : "在此会话中继续"}</span>
+            <button className="toolbar-button" disabled={chatStreaming} aria-expanded={composerOpen || chatStreaming} onClick={() => setComposerVisible(!composerOpen)}>{composerOpen || chatStreaming ? "收起输入框" : "输入消息"}</button>
+          </div>
+          <div hidden={!composerOpen && !chatStreaming}>
           <ChatInput
             ref={chatInputRef}
             paneId={mainPaneId}
@@ -1598,6 +1499,7 @@ export function MessagesPage() {
             isStreaming={chatStreaming}
             disabled={!chatProjectPath}
           />
+          </div>
         </div>
       )}
 
@@ -1606,7 +1508,7 @@ export function MessagesPage() {
         <SelectionReplyButton
           scopeRef={containerRef}
           disabled={chatStreaming}
-          onReply={(text) => chatInputRef.current?.insertQuote(text)}
+          onReply={(text) => { setComposerVisible(true); requestAnimationFrame(() => chatInputRef.current?.insertQuote(text)); }}
         />
       )}
 
@@ -1620,7 +1522,7 @@ export function MessagesPage() {
       )}
 
       {/* Timeline navigation dots */}
-      {questionTocItems.length > 1 && viewMode === "messages" && !matchedOnly && (
+      {questionTocItems.length > 1 && viewMode === "messages" && !matchedOnly && !tocCollapsed && (
         <TimelineDots
           dots={questionTocItems}
           activeId={activeUserMsgId}

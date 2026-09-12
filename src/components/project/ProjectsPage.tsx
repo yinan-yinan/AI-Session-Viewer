@@ -144,19 +144,20 @@ export function ProjectsPage() {
 
   // 网格虚拟化：按容器宽度算列数（1~3），把项目分块成「行」，只渲染可见行。
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [projectView, setProjectView] = useState(() => localStorage.getItem("projectLayout") === "list" ? "list" : "grid");
   const [cols, setCols] = useState(3);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const update = () => {
       const w = el.clientWidth;
-      setCols(Math.min(3, Math.max(1, Math.floor(w / 300))));
+      setCols(projectView === "list" ? 1 : Math.min(4, Math.max(1, Math.floor((w - 48) / 280))));
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [projectView]);
 
   const rows = useMemo(() => {
     const out: ProjectEntry[][] = [];
@@ -169,7 +170,7 @@ export function ProjectsPage() {
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 168,
+    estimateSize: () => projectView === "list" ? 112 : 156,
     overscan: 4,
   });
 
@@ -205,10 +206,11 @@ export function ProjectsPage() {
   return (
     <>
     <div className="flex flex-col h-full">
-      <div className="px-6 pt-6 shrink-0">
-      <div className="flex items-center mb-6">
-        <h1 className="text-2xl font-bold">所有项目</h1>
-        <div className="ml-auto flex items-center gap-2">
+      <div className="workspace-list-header">
+      <div className="workspace-page-header">
+        <div><h1 className="workspace-page-title">所有项目</h1><p className="workspace-page-description">{filteredProjects.length} 个项目 · 选择项目查看会话</p></div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <select aria-label="项目显示方式" className="toolbar-button" value={projectView} onChange={(event) => { setProjectView(event.target.value); localStorage.setItem("projectLayout", event.target.value); }}><option value="list">列表</option><option value="grid">网格</option></select>
           <button
             onClick={handleRefresh}
             disabled={refreshing || projectsLoading || selectMode}
@@ -240,7 +242,8 @@ export function ProjectsPage() {
 
       {/* Global tag filter bar */}
       {allGlobalTags.length > 0 && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <details className="workspace-filter"><summary>标签筛选{globalTagFilter.length > 0 ? " · 已选 " + globalTagFilter.length : ""}</summary>
+        <div className="flex flex-wrap items-center gap-2">
           <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           {allGlobalTags.map((tag) => (
             <button
@@ -263,13 +266,13 @@ export function ProjectsPage() {
               清除筛选
             </button>
           )}
-        </div>
+        </div></details>
       )}
 
       </div>
 
       {/* 项目网格（行分块虚拟化滚动容器） */}
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto px-6 pt-2 pb-24">
+      <div ref={scrollRef} className={"workspace-list-body " + (projectView === "list" ? "project-list-view" : "")}>
       {projectsLoading ? (
         <ScanProgressView label="加载项目列表" />
       ) : filteredProjects.length === 0 ? (
@@ -291,10 +294,10 @@ export function ProjectsPage() {
                 left: 0,
                 width: "100%",
                 transform: `translateY(${virtualRow.start}px)`,
-                paddingBottom: "1rem",
+                paddingBottom: "0.75rem",
               }}
             >
-              <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
                 {rows[virtualRow.index].map((project) => (
             <div
               key={project.id}
@@ -322,7 +325,7 @@ export function ProjectsPage() {
                   }
                 }
               }}
-              className={`relative bg-card border rounded-lg p-4 text-left hover:border-primary/50 hover:bg-accent/30 transition-all group cursor-pointer ${
+              className={`project-card relative bg-card border rounded-lg p-3 text-left hover:border-primary/50 hover:bg-accent/30 transition-colors group cursor-pointer ${
                 selected.has(project.id) ? "border-primary bg-primary/5" : "border-border"
               }`}
             >
@@ -351,13 +354,13 @@ export function ProjectsPage() {
                   <MoreHorizontal className="w-3.5 h-3.5" />
                 </button>
               )}
-              <div className="flex items-start gap-3">
+              <div className="project-card-content flex items-start gap-3">
                 {project.isVirtual ? (
                   <FolderClock className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
                 ) : (
                   <FolderOpen className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                 )}
-                <div className="min-w-0 flex-1">
+                <div className="project-card-details min-w-0 flex-1">
                   <h3 className="font-medium text-foreground truncate">
                     {project.alias ?? project.shortName}
                   </h3>
@@ -387,7 +390,7 @@ export function ProjectsPage() {
                   </p>
                   {/* Project tags */}
                   {crossProjectTags[project.id] && crossProjectTags[project.id].length > 0 && (
-                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <div className="project-card-tags flex items-center gap-1.5 mt-2 flex-wrap">
                       {crossProjectTags[project.id].map((tag) => (
                         <span
                           key={tag}
@@ -398,7 +401,7 @@ export function ProjectsPage() {
                       ))}
                     </div>
                   )}
-                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                  <div className="project-card-meta flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Hash className="w-3 h-3" />
                       {project.sessionCount} 个会话
@@ -409,12 +412,12 @@ export function ProjectsPage() {
                         {lastModifiedMap.get(project.id)}
                       </span>
                     )}
-                  </div>
                   {project.modelProvider && (
-                    <span className="mt-2 inline-block text-xs px-2 py-0.5 bg-muted rounded">
+                    <span className="inline-block text-xs px-2 py-0.5 bg-muted rounded">
                       {project.modelProvider}
                     </span>
                   )}
+                  </div>
                 </div>
               </div>
             </div>

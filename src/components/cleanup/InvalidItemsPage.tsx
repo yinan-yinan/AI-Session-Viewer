@@ -428,7 +428,7 @@ export function InvalidItemsPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="workspace-page space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -443,7 +443,7 @@ export function InvalidItemsPage() {
           </div>
           <div className="flex items-center gap-2">
             <FolderX className="w-6 h-6 text-amber-500" />
-            <h1 className="text-2xl font-bold text-foreground">无效项目 / 无效会话</h1>
+            <h1 className="workspace-page-title">无效项目 / 无效会话</h1>
           </div>
           <p className="mt-2 text-sm text-muted-foreground max-w-3xl">
             按项目分组查看异常数据。当前规则：无效项目 = 路径不存在；无效会话 = 消息数为 0

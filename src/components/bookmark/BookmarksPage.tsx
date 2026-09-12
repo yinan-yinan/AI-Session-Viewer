@@ -40,10 +40,10 @@ export function BookmarksPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-2 mb-6">
+    <div className="workspace-page">
+      <div className="flex items-center gap-2 mb-5">
         <Star className="w-5 h-5 text-yellow-500" />
-        <h1 className="text-2xl font-bold">收藏</h1>
+        <h1 className="workspace-page-title">收藏</h1>
         <span className="text-sm text-muted-foreground">({filtered.length})</span>
       </div>
 

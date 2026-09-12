@@ -99,11 +99,11 @@ export function SkillsPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 pt-6 shrink-0">
+      <div className="workspace-list-header">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
           <Sparkles className="w-6 h-6 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold">Skills</h1>
+            <h1 className="workspace-page-title">Skills</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               查看全局、插件与项目级 Skills（{totalCount}）
             </p>
@@ -156,7 +156,7 @@ export function SkillsPage() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 min-h-0 overflow-auto px-6 pt-2 pb-12">
+      <div className="workspace-list-body">
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />

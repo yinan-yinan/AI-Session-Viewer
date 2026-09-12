@@ -112,7 +112,7 @@ export function NodeSelector() {
 
   return (
     <>
-      <div className="flex items-center gap-1.5">
+      <div className="flex min-w-0 items-center gap-1">
         <span
           className={`h-2 w-2 shrink-0 rounded-full ${
             activeStatus === "online"
@@ -138,7 +138,8 @@ export function NodeSelector() {
         <select
           value={activeId}
           onChange={(event) => switchNode(event.target.value)}
-          className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+          className="h-9 min-w-0 flex-1 rounded-md border border-border bg-card px-1 text-xs text-foreground"
+          aria-label="当前机器"
           title="当前机器"
         >
           <option value={LOCAL_NODE_ID}>
@@ -152,7 +153,7 @@ export function NodeSelector() {
         </select>
         <button
           onClick={() => setOpen(true)}
-          className="p-1.5 rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
           title="管理机器"
         >
           <Settings2 className="h-3.5 w-3.5" />

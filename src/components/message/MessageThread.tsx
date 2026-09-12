@@ -504,7 +504,7 @@ export const MessageThread = memo(function MessageThread({
         <div
           key={msgId}
           data-user-msg-id={msgId}
-          className={`group/bookmark flex items-start gap-1.5 ${isThreaded ? "w-full justify-start" : "justify-end"}`}
+          className={`group/bookmark flex flex-col items-stretch gap-1.5 ${isThreaded ? "w-full justify-start" : "justify-end"}`}
         >
           <div className={`min-w-0 ${isThreaded ? "flex-1" : ""}`}>
             <UserMessage
@@ -522,7 +522,7 @@ export const MessageThread = memo(function MessageThread({
               onToggleReplies={threadFold?.setExpanded}
             />
           </div>
-          <div className="flex shrink-0 flex-col gap-0.5">
+          <div className="flex shrink-0 items-center justify-end gap-1">
             {showActionButtons && (
               <button
                 type="button"
@@ -632,7 +632,7 @@ export const MessageThread = memo(function MessageThread({
 
   if (!isThreaded) {
     return (
-      <div className="mx-auto max-w-3xl space-y-6 px-6 py-6">
+      <div className="mx-auto max-w-4xl space-y-4 px-4 py-4">
         {forkError && <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">分叉失败：{forkError}</div>}
         {roots.map((node) => renderMessage(node))}
         {renderAssistantContextMenu()}
@@ -641,7 +641,7 @@ export const MessageThread = memo(function MessageThread({
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-2 py-6 sm:px-3">
+    <div className="mx-auto max-w-4xl space-y-4 px-4 py-4 sm:px-6">
       {roots.map((node) => (
         <ThreadBranch key={node.id} node={node} renderMessage={renderMessage} source={source} />
       ))}
