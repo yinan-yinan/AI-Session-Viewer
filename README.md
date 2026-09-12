@@ -26,7 +26,7 @@
 
 本应用**仅处理本地会话文件**，不上传任何数据；删除、标签、别名等写操作只在用户主动触发时执行。
 
-> **What's New（v2.21.0）**：新增 Oh My Pi 本地会话支持，覆盖默认/命名 profile 与 Linux/macOS XDG 数据目录，可浏览、搜索、导出、管理、恢复并在应用内续聊；同时修复 Web print mode 提示词传递、OMP 环境继承和 CLI 可用性检测。完整版本历史见 [CHANGELOG.md](./CHANGELOG.md)。
+> **What's New（v2.22.0）**：桌面与 Web 均支持 Claude、Codex、Grok、Oh My Pi 四来源 Fork；项目和会话默认使用便利贴式多列卡片，四个 Agent 保持纵向排列并支持在设置中显隐。新增最近浏览，精简阅读工具栏、目录与续聊区域，并适配窄屏导航和深色主题。Grok 分叉后提供续聊命令，Claude、Codex 和 Oh My Pi 可沿用应用内续聊。完整版本历史见 [CHANGELOG.md](./CHANGELOG.md)。
 >
 > v2.15.x 起：在 **Codex desktop 中归档 / 删除的会话**残留为「(无标题)」幽灵条目已修复（删除对「文件已消失」幂等）；**会话导出**（JSON / Markdown / HTML，单个 + 批量）、**批量删除会话 / 项目**（移入回收站可还原）、**Codex 项目删除**；初次启动**扫描进度条** + 冷启动 rayon 限流给 UI 留一核，会话页 / 项目页全面**列表虚拟化**（`@tanstack/react-virtual`）。
 
