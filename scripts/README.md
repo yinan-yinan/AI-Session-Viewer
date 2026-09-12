@@ -26,7 +26,8 @@
 - 本地桌面构建临时设置 `createUpdaterArtifacts=false`，不需要发布签名私钥。
 - 正式发布继续使用 `tauri.conf.json` 和 GitHub Actions Secrets 生成 updater 签名。
 - 所有脚本都会先定位仓库根目录，因此可以从任意当前目录调用。
-- 轻量检查会验证节点 URL、时区格式化，以及聊天/OMP 的提示词、CLI 检测、profile/XDG 路径和环境继承契约；它不替代 Rust/TypeScript 编译检查。
+- 轻量检查会验证节点 URL、时区格式化，以及聊天/OMP 的提示词、CLI 检测、profile/XDG 路径和环境继承契约；还会检查四来源 Fork 的桌面/Web 调用流程与终端失败后保留新会话的行为。它不替代 Rust/TypeScript 编译检查。
+- 可单独运行 `node scripts/check-session-fork.mjs` 检查分叉调用流程。会话文件的 Rust 回归用例位于 `crates/session-core/src/fork/tests.rs`，覆盖工具轮次、OMP 祖先链与附件、Grok 原始历史、分叉失败清理、分页定位及 Codex 回退；这些用例需要人工运行 `cargo test -p session-core fork::tests`。
 
 ## 常用参数
 

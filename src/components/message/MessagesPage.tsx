@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAppStore } from "../../stores/appStore";
 import { useChatStore } from "../../stores/chatStore";
 import { ArrowLeft, Play, Copy, Loader2, ArrowDown, ArrowUp, Clock, Cpu, AlertCircle, Tag, Plus, X, Rows3, ChevronsUpDown, Columns2, Rows2, ListTree, MessageSquare, Activity } from "lucide-react";
@@ -23,7 +23,7 @@ import { SessionPositionRail } from "./SessionPositionRail";
 import { ChatInput, type ChatInputHandle } from "../chat/ChatInput";
 import { StreamingMessage, getLinkedToolUseIds } from "../chat/StreamingMessage";
 import { useActiveUserMessage } from "../../hooks/useActiveUserMessage";
-import { formatTime } from "./utils";
+import { copyTextToClipboard, formatTime } from "./utils";
 import { api } from "../../services/api";
 import { subscribeToChatWebSocketMessages } from "../../services/webApi";
 import { SessionMetaEditor } from "../session/SessionMetaEditor";
@@ -351,6 +351,7 @@ function usePaneChatStream(paneId: string, streamIdOverride?: string | null) {
 
 export function MessagesPage() {
   const params = useParams();
+  const location = useLocation();
   const projectId = params.projectId || "";
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -411,7 +412,7 @@ export function MessagesPage() {
     })),
   );
   const supportsCli = source === "claude" || source === "codex" || source === "omp";
-  const supportsResume = supportsCli;
+  const supportsResume = supportsCli || source === "grok";
 
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -470,7 +471,8 @@ export function MessagesPage() {
   const session = sessions.find((s) => s.filePath === filePath);
   const searchHit = searchResults.find((r) => r.filePath === filePath);
   const project = projects.find((p) => p.id === projectId);
-  const resolvedSessionId = session?.sessionId || searchHit?.sessionId || null;
+  const createdFork = location.state?.forkResult?.newFilePath === filePath ? location.state.forkResult : null;
+  const resolvedSessionId = session?.sessionId || searchHit?.sessionId || createdFork?.newSessionId || null;
   const resolvedSessionTitle =
     session?.alias ||
     session?.threadName ||
@@ -483,6 +485,7 @@ export function MessagesPage() {
   const chatProjectPath =
     session?.projectPath ||
     session?.cwd ||
+    createdFork?.projectPath ||
     project?.displayPath ||
     (source !== "claude" ? searchHit?.projectId : "") ||
     "";
@@ -987,7 +990,11 @@ export function MessagesPage() {
 
   const handleCopyCommand = async (e: React.MouseEvent) => {
     e.preventDefault();
-    await navigator.clipboard.writeText(getResumeCommand());
+    const command = getResumeCommand();
+    if (!await copyTextToClipboard(command)) {
+      setResumeError(`复制失败，请手动复制：${command}`);
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -1011,7 +1018,10 @@ export function MessagesPage() {
       }
     } else {
       const cmd = getResumeCommand();
-      await navigator.clipboard.writeText(cmd);
+      if (!await copyTextToClipboard(cmd)) {
+        setResumeError(`复制失败，请手动复制：${cmd}`);
+        return;
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -1354,6 +1364,19 @@ export function MessagesPage() {
       )}
 
       {/* Resume error toast */}
+      {createdFork && (
+        <div role="status" className="mx-4 mt-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm">
+          <div>已创建独立分叉，原会话保留。</div>
+          {location.state.forkWarning && <div className="mt-1 text-destructive">{location.state.forkWarning}</div>}
+          {(!USE_TAURI_TRANSPORT || location.state.forkWarning) && (
+            <div className="mt-1 space-y-1">
+              <div>{source === "grok" ? "Grok 请使用下方命令续聊。" : "可在下方继续对话，或使用命令续聊。"}在会话所在机器的项目目录运行：</div>
+              <div className="break-all text-xs text-muted-foreground">{createdFork.projectPath}</div>
+              <code className="block select-all break-all font-mono text-xs">{getResumeCommand()}</code>
+            </div>
+          )}
+        </div>
+      )}
       {resumeError && (
         <div className="mx-4 mt-2 px-4 py-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
           {resumeError}

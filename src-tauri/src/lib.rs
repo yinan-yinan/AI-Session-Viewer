@@ -48,7 +48,7 @@ pub fn run() {
             commands::stats::get_project_costs,
             commands::stats::get_session_cost,
             commands::terminal::resume_session,
-            commands::terminal::fork_and_resume,
+            commands::terminal::fork_session,
             commands::updater::get_install_type,
             commands::chat::detect_cli,
             commands::chat::get_cli_config,

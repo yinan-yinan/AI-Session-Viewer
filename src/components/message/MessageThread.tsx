@@ -8,6 +8,8 @@ import { Star, GitFork, Play, Loader2, ChevronDown, ChevronRight } from "lucide-
 import { api } from "../../services/api";
 import { useExpandAllControl } from "../common/ExpandAllContext";
 import { getUserMessageId, type ThreadDisplayNode } from "./threading";
+import { useSessionFork } from "./useSessionFork";
+import { isRemoteNodeActive } from "../../services/nodeConfig";
 
 declare const __IS_TAURI__: boolean;
 
@@ -344,9 +346,7 @@ export const MessageThread = memo(function MessageThread({
   const isBookmarked = useAppStore((state) => state.isBookmarked);
   const bookmarks = useAppStore((state) => state.bookmarks);
   const terminalShell = useAppStore((state) => state.terminalShell);
-  const refreshInBackground = useAppStore((state) => state.refreshInBackground);
-  const [forkingMsgId, setForkingMsgId] = useState<string | null>(null);
-  const [forkSuccessMsgId, setForkSuccessMsgId] = useState<string | null>(null);
+  const { fork: handleFork, pendingMessageId: forkingMsgId, error: forkError } = useSessionFork(source, filePath);
   const [assistantContextMenu, setAssistantContextMenu] = useState<{
     x: number;
     y: number;
@@ -404,21 +404,6 @@ export const MessageThread = memo(function MessageThread({
     }
   };
 
-  const handleFork = async (msgId: string) => {
-    if (!filePath || !projectPath || !msgId) return;
-    setForkingMsgId(msgId);
-    try {
-      await api.forkAndResume(source, filePath, msgId, projectPath, terminalShell);
-      setForkSuccessMsgId(msgId);
-      setTimeout(() => setForkSuccessMsgId(null), 2000);
-      refreshInBackground();
-    } catch (err) {
-      console.error("Failed to fork session:", err);
-    } finally {
-      setForkingMsgId(null);
-    }
-  };
-
   const handleAssistantContextMenu = (
     event: MouseEvent<HTMLDivElement>,
     node: ThreadDisplayNode
@@ -452,7 +437,7 @@ export const MessageThread = memo(function MessageThread({
       console.error("Failed to resume session:", err);
     }
   };
-  const showActionButtons = __IS_TAURI__ && source === "claude";
+  const showActionButtons = Boolean(filePath);
 
   const roots = useMemo<ThreadDisplayNode[]>(
     () =>
@@ -511,10 +496,9 @@ export const MessageThread = memo(function MessageThread({
     if (msg.role === "user") {
       const msgId = getUserMessageId(msg, node.originalIndex);
       const bookmarked = sessionId ? isBookmarked(sessionId, msgId) : false;
-      const canFork = showActionButtons && !!msg.uuid;
-      const canResume = showActionButtons && !!sessionId;
+      const canFork = !!msg.uuid;
+      const canResume = __IS_TAURI__ && !isRemoteNodeActive() && !!sessionId && !!projectPath;
       const isForking = forkingMsgId === msgId;
-      const isForkSuccess = forkSuccessMsgId === msgId;
 
       return (
         <div
@@ -539,6 +523,24 @@ export const MessageThread = memo(function MessageThread({
             />
           </div>
           <div className="flex shrink-0 flex-col gap-0.5">
+            {showActionButtons && (
+              <button
+                type="button"
+                onClick={() => handleFork(msgId)}
+                disabled={!canFork || forkingMsgId !== null}
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border/60 bg-background/70 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60"
+                title={canFork
+                  ? "保留此轮完整回复，分叉为新会话"
+                  : "当前消息缺少分叉定位信息，请刷新会话或更新应用后重试"}
+              >
+                {isForking ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <GitFork className="h-3.5 w-3.5" />
+                )}
+                {isForking ? "分叉中…" : "Fork 分叉"}
+              </button>
+            )}
             {canResume && (
               <button
                 onClick={handleResumeFromMessage}
@@ -546,26 +548,6 @@ export const MessageThread = memo(function MessageThread({
                 title="在终端中恢复此会话"
               >
                 <Play className="h-3.5 w-3.5" />
-              </button>
-            )}
-            {canFork && (
-              <button
-                onClick={() => handleFork(msgId)}
-                disabled={isForking}
-                className={`rounded p-1 transition-all ${
-                  isForkSuccess
-                    ? "text-green-500 opacity-100"
-                    : isForking
-                      ? "text-muted-foreground opacity-100"
-                      : "text-muted-foreground opacity-0 group-hover/bookmark:opacity-100 hover:text-primary"
-                }`}
-                title="从此处分叉新会话"
-              >
-                {isForking ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <GitFork className="h-3.5 w-3.5" />
-                )}
               </button>
             )}
             {sessionId && (
@@ -651,6 +633,7 @@ export const MessageThread = memo(function MessageThread({
   if (!isThreaded) {
     return (
       <div className="mx-auto max-w-3xl space-y-6 px-6 py-6">
+        {forkError && <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">分叉失败：{forkError}</div>}
         {roots.map((node) => renderMessage(node))}
         {renderAssistantContextMenu()}
       </div>

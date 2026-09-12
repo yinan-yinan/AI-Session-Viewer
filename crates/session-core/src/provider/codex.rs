@@ -812,6 +812,12 @@ fn project_key_for(fm: &CodexFileMeta) -> String {
     }
 }
 
+/// Resolve the destination bucket after a native fork (direct-chat and
+/// unrooted sessions can belong to a different bucket than their parent).
+pub fn project_id_for_session(path: &Path) -> Option<String> {
+    file_meta_for(path).map(|meta| project_key_for(&meta))
+}
+
 /// Build the per-file index with a single parallel pass over every rollout
 /// file: one `extract_session_meta` (≤50 lines) + one `fs::metadata` per file.
 /// This is the only place that opens every file; the project/session lists are
@@ -1228,8 +1234,9 @@ pub fn parse_all_messages(path: &Path) -> Result<Vec<DisplayMessage>, String> {
     let file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
     let reader = BufReader::new(file);
     let mut messages: Vec<DisplayMessage> = Vec::new();
+    let mut turn_starts: Vec<(String, usize)> = Vec::new();
 
-    for line in reader.lines() {
+    for (line_index, line) in reader.lines().enumerate() {
         let line = match line {
             Ok(l) => l,
             Err(_) => continue,
@@ -1243,7 +1250,9 @@ pub fn parse_all_messages(path: &Path) -> Result<Vec<DisplayMessage>, String> {
             Ok(v) => v,
             Err(_) => continue,
         };
-        if let Some(message) = display_message_from_row(&row) {
+        apply_history_event(&row, &mut messages, &mut turn_starts);
+        if let Some(mut message) = display_message_from_row(&row) {
+            message.uuid = Some(crate::fork::line_message_id(line_index, &row));
             messages.push(message);
         }
     }
@@ -1300,7 +1309,7 @@ fn parse_tail_messages(
     let mut tail_messages: VecDeque<DisplayMessage> = VecDeque::with_capacity(window_len);
     let mut total = 0usize;
 
-    for line in reader.lines() {
+    for (line_index, line) in reader.lines().enumerate() {
         let line = match line {
             Ok(l) => l,
             Err(_) => continue,
@@ -1315,7 +1324,13 @@ fn parse_tail_messages(
             Err(_) => continue,
         };
 
-        if let Some(message) = display_message_from_row(&row) {
+        if row.pointer("/payload/type").and_then(Value::as_str) == Some("thread_rolled_back") {
+            let messages = parse_all_messages(path)?;
+            return paginate_from_range(&messages, messages.len(), page, page_size, true, 0)
+                .ok_or_else(|| "Failed to paginate fork history".to_string());
+        }
+        if let Some(mut message) = display_message_from_row(&row) {
+            message.uuid = Some(crate::fork::line_message_id(line_index, &row));
             total += 1;
             if tail_messages.len() == window_len {
                 tail_messages.pop_front();
@@ -1330,6 +1345,57 @@ fn parse_tail_messages(
 
     paginate_from_range(&messages, total, page, page_size, true, range_start)
         .ok_or_else(|| "Failed to paginate tail messages".to_string())
+}
+
+fn apply_history_event(
+    row: &Value,
+    messages: &mut Vec<DisplayMessage>,
+    starts: &mut Vec<(String, usize)>,
+) {
+    if row.get("type").and_then(Value::as_str) != Some("event_msg") {
+        return;
+    }
+    let Some(payload) = row.get("payload") else {
+        return;
+    };
+    match payload.get("type").and_then(Value::as_str) {
+        Some("task_started" | "turn_started") => {
+            if let Some(id) = payload.get("turn_id").and_then(Value::as_str) {
+                if starts.last().is_none_or(|(last, _)| last != id) {
+                    starts.push((id.to_string(), messages.len()));
+                }
+            }
+        }
+        Some("thread_rolled_back") => {
+            let Some(count) = payload
+                .get("num_turns")
+                .and_then(Value::as_u64)
+                .and_then(|n| usize::try_from(n).ok())
+            else {
+                return;
+            };
+            if count == 0 {
+                return;
+            }
+            let cut = if count <= starts.len() {
+                let keep = starts.len() - count;
+                let cut = starts[keep].1;
+                starts.truncate(keep);
+                cut
+            } else {
+                starts.clear();
+                messages
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .filter(|(_, m)| m.role == "user")
+                    .nth(count - 1)
+                    .map_or(0, |(index, _)| index)
+            };
+            messages.truncate(cut);
+        }
+        _ => {}
+    }
 }
 
 fn display_message_from_row(row: &Value) -> Option<DisplayMessage> {

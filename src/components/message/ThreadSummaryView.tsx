@@ -1,15 +1,14 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import {
   MessageCircleQuestion,
   CornerDownRight,
   GitBranch,
   Loader2,
-  Check,
 } from "lucide-react";
 import type { QuestionIndexEntry } from "../../types";
 import { formatTime } from "./utils";
 import { useAppStore } from "../../stores/appStore";
-import { api } from "../../services/api";
+import { useSessionFork } from "./useSessionFork";
 
 interface ThreadSummaryViewProps {
   questions: QuestionIndexEntry[];
@@ -93,7 +92,6 @@ export const ThreadSummaryView = memo(function ThreadSummaryView({
   source,
   onSelect,
   filePath,
-  projectPath,
 }: ThreadSummaryViewProps) {
   const timeZone = useAppStore((state) => state.timeZone);
   const items = useMemo(
@@ -104,33 +102,10 @@ export const ThreadSummaryView = memo(function ThreadSummaryView({
     () => questions.some((question) => question.parentMessageIndex !== null),
     [questions],
   );
-  const assistantName = source === "codex" ? "Codex" : source === "omp" ? "Oh My Pi" : "Claude";
+  const assistantName = source === "codex" ? "Codex" : source === "omp" ? "Oh My Pi" : source === "grok" ? "Grok" : "Claude";
 
-  const terminalShell = useAppStore((state) => state.terminalShell);
-  const refreshInBackground = useAppStore((state) => state.refreshInBackground);
-  const [forkingMsgId, setForkingMsgId] = useState<string | null>(null);
-  const [forkSuccessMsgId, setForkSuccessMsgId] = useState<string | null>(null);
-  const [forkError, setForkError] = useState<string | null>(null);
-  const canFork = source === "claude" && Boolean(filePath && projectPath);
-
-  const handleFork = useCallback(
-    async (userMsgId: string) => {
-      if (!filePath || !projectPath) return;
-      setForkError(null);
-      setForkingMsgId(userMsgId);
-      try {
-        await api.forkAndResume(source, filePath, userMsgId, projectPath, terminalShell);
-        setForkSuccessMsgId(userMsgId);
-        setTimeout(() => setForkSuccessMsgId(null), 1800);
-        void refreshInBackground();
-      } catch (error) {
-        setForkError(error instanceof Error ? error.message : String(error));
-      } finally {
-        setForkingMsgId(null);
-      }
-    },
-    [filePath, projectPath, refreshInBackground, source, terminalShell],
-  );
+  const { fork: handleFork, pendingMessageId: forkingMsgId, error: forkError } = useSessionFork(source, filePath);
+  const canFork = Boolean(filePath);
 
   if (items.length === 0) {
     return (
@@ -148,26 +123,18 @@ export const ThreadSummaryView = memo(function ThreadSummaryView({
           {isThreaded && "（按父子关系展示）"}
         </span>
         <span>
-          {canFork ? '点击任意一条跳转 · “回复此处”从该消息分叉新会话' : "点击任意一条跳转"}
+          {canFork ? "点击提问跳转 · 从此处分叉会保留该轮完整回复" : "点击任意一条跳转"}
         </span>
       </div>
 
       {forkError && (
         <div className="mb-3 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
           分叉失败：{forkError}
-          <button
-            type="button"
-            onClick={() => setForkError(null)}
-            className="ml-2 opacity-70 hover:opacity-100"
-          >
-            ×
-          </button>
         </div>
       )}
 
       {items.map((item, index) => {
         const isForking = forkingMsgId === item.messageId;
-        const isForkSucceeded = forkSuccessMsgId === item.messageId;
         const indent = Math.min(item.depth, 4);
 
         return (
@@ -244,22 +211,16 @@ export const ThreadSummaryView = memo(function ThreadSummaryView({
                   <button
                     type="button"
                     onClick={() => void handleFork(item.messageId)}
-                    disabled={isForking}
-                    className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] transition-colors ${
-                      isForkSucceeded
-                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "border-border bg-background hover:border-primary hover:text-primary"
-                    } ${isForking ? "opacity-60" : ""}`}
-                    title="从此条消息分叉新会话并在终端打开"
+                    disabled={forkingMsgId !== null || /^user-\d+$/.test(item.messageId)}
+                    className={`inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] transition-colors hover:border-primary hover:text-primary disabled:opacity-60`}
+                    title="保留此轮完整回复，分叉为新会话"
                   >
                     {isForking ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : isForkSucceeded ? (
-                      <Check className="h-3 w-3" />
                     ) : (
                       <GitBranch className="h-3 w-3" />
                     )}
-                    {isForkSucceeded ? "已分叉" : "回复此处"}
+                    从此处分叉
                   </button>
                 </div>
               )}

@@ -274,6 +274,7 @@ async fn main() {
             put(routes::projects::set_project_alias),
         )
         .route("/api/sessions", get(routes::sessions::get_sessions))
+        .route("/api/sessions/fork", post(routes::sessions::fork_session))
         .route(
             "/api/sessions/invalid",
             get(routes::sessions::get_invalid_sessions),

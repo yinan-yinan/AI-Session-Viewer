@@ -4,6 +4,7 @@ pub mod cli;
 pub mod cli_config;
 pub mod codex_app_server;
 pub mod export;
+pub mod fork;
 pub mod metadata;
 pub mod model_list;
 pub mod models;

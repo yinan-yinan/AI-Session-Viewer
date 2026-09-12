@@ -517,18 +517,16 @@ export async function getCrossProjectTags(
 export interface ForkResult {
   newSessionId: string;
   newFilePath: string;
-  messageCount: number;
-  firstPrompt: string | null;
+  projectPath: string;
+  projectId: string;
 }
 
-export async function forkAndResume(
-  _source: string,
-  _originalFilePath: string,
-  _userMsgUuid: string,
-  _projectPath: string,
-  _shell?: string
+export async function forkSession(
+  source: string,
+  originalFilePath: string,
+  userMsgUuid: string,
 ): Promise<ForkResult> {
-  throw new Error("Fork is not available in web mode");
+  return apiPost("/api/sessions/fork", { source, originalFilePath, userMsgUuid });
 }
 
 // Web mode: resume not available, use clipboard instead

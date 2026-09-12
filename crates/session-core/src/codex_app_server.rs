@@ -191,6 +191,51 @@ impl CodexAppServer {
         send_request(&rt, method, params).await
     }
 
+    pub async fn read_thread(
+        &self,
+        creds: &ResolvedCliCredentials,
+        thread_id: &str,
+    ) -> Result<Value, String> {
+        self.request(
+            creds,
+            "thread/read",
+            json!({ "threadId": thread_id, "includeTurns": true }),
+        )
+        .await
+    }
+
+    pub async fn fork_thread(
+        &self,
+        creds: &ResolvedCliCredentials,
+        thread_id: &str,
+        last_turn_id: &str,
+    ) -> Result<Value, String> {
+        self.request(
+            creds,
+            "thread/fork",
+            json!({
+                "threadId": thread_id,
+                "lastTurnId": last_turn_id,
+                "persistExtendedHistory": true,
+            }),
+        )
+        .await
+    }
+
+    pub async fn rollback_thread(
+        &self,
+        creds: &ResolvedCliCredentials,
+        thread_id: &str,
+        num_turns: usize,
+    ) -> Result<Value, String> {
+        self.request(
+            creds,
+            "thread/rollback",
+            json!({ "threadId": thread_id, "numTurns": num_turns }),
+        )
+        .await
+    }
+
     pub async fn start_thread(
         &self,
         creds: &ResolvedCliCredentials,

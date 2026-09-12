@@ -292,23 +292,19 @@ export async function resumeSession(
 export interface ForkResult {
   newSessionId: string;
   newFilePath: string;
-  messageCount: number;
-  firstPrompt: string | null;
+  projectPath: string;
+  projectId: string;
 }
 
-export async function forkAndResume(
+export async function forkSession(
   source: string,
   originalFilePath: string,
   userMsgUuid: string,
-  projectPath: string,
-  shell?: string
 ): Promise<ForkResult> {
-  return invoke<ForkResult>("fork_and_resume", {
+  return invoke<ForkResult>("fork_session", {
     source,
     originalFilePath,
     userMsgUuid,
-    projectPath,
-    shell,
   });
 }
 

@@ -187,9 +187,18 @@ pub fn parse_all_messages(path: &Path) -> Result<Vec<DisplayMessage>, String> {
 
     Ok(BufReader::new(file)
         .lines()
-        .map_while(Result::ok)
-        .filter_map(|line| serde_json::from_str::<Value>(&line).ok())
-        .filter_map(|row| display_message_from_row(&row))
+        .enumerate()
+        .map_while(|(index, line)| line.ok().map(|line| (index, line)))
+        .filter_map(|(index, line)| {
+            serde_json::from_str::<Value>(&line)
+                .ok()
+                .map(|row| (index, row))
+        })
+        .filter_map(|(index, row)| {
+            let mut message = display_message_from_row(&row)?;
+            message.uuid = Some(crate::fork::line_message_id(index, &row));
+            Some(message)
+        })
         .collect())
 }
 

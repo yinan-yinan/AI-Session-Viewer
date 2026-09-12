@@ -8,6 +8,15 @@ use session_core::provider::{claude, codex, grok, omp};
 
 use crate::{resolve_claude_project_dir, resolve_session_file_path, SessionSource};
 
+pub async fn fork_session(
+    Json(request): Json<session_core::fork::ForkRequest>,
+) -> Result<Json<session_core::fork::ForkResult>, (StatusCode, String)> {
+    session_core::fork::fork_session(request)
+        .await
+        .map(Json)
+        .map_err(|error| (StatusCode::BAD_REQUEST, error))
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionsQuery {
