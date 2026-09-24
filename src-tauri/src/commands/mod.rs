@@ -2,6 +2,7 @@ pub mod bookmarks;
 pub mod chat;
 pub mod export;
 pub mod messages;
+pub mod omp_models;
 pub mod perf;
 pub mod progress;
 pub mod projects;

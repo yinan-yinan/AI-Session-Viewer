@@ -377,6 +377,30 @@ async fn main() {
             "/api/provider-sync/prune",
             post(routes::provider_sync::prune_backups),
         )
+        .route(
+            "/api/omp/model-providers",
+            get(routes::omp_models::list_providers).put(routes::omp_models::save_provider),
+        )
+        .route(
+            "/api/omp/model-providers/delete",
+            post(routes::omp_models::delete_provider),
+        )
+        .route(
+            "/api/omp/model-providers/disable",
+            post(routes::omp_models::disable_provider),
+        )
+        .route(
+            "/api/omp/model-providers/enable",
+            post(routes::omp_models::enable_provider),
+        )
+        .route(
+            "/api/omp/model-providers/preview",
+            post(routes::omp_models::preview_provider),
+        )
+        .route(
+            "/api/omp/model-providers/refresh",
+            post(routes::omp_models::refresh_models),
+        )
         // Single-use ticket endpoint — must be authenticated with the
         // standard Bearer header. Used by browsers to upgrade to WebSocket
         // without leaking the long-lived token through the URL.

@@ -703,8 +703,9 @@ pub fn delete_project(project_id: &str) -> Result<super::claude::DeleteResult, S
         if crate::recyclebin::move_omp_session_to_recyclebin(
             &path,
             project_id,
-            session.thread_name.clone().or(session.first_prompt.clone()),
+            None,
             Some(project_name.clone()),
+            true,
         )
         .is_ok()
         {
