@@ -116,7 +116,7 @@ pub fn delete_session(
                         "Session id does not match the requested OMP session file".to_string()
                     );
                 }
-                recyclebin::move_omp_session_to_recyclebin(&path, &project_id, None, None)?;
+                recyclebin::move_omp_session_to_recyclebin(&path, &project_id, None, None, false)?;
             } else {
                 // Claude/Codex sessions are one JSONL file. Grok keeps a session in
                 // a directory, so recycle the validated file's parent as one unit.

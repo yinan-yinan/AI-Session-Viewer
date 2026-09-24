@@ -2,6 +2,7 @@ import { Suspense, lazy, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { AuthGate } from "./components/auth/AuthGate";
+import { OmpModelsPage } from "./components/omp-models/OmpModelsPage";
 
 const ProjectsPage = lazy(async () => {
   const module = await import("./components/project/ProjectsPage");
@@ -162,6 +163,10 @@ function App() {
               <ProviderSyncPage />
             </LazyRoute>
           }
+        />
+        <Route
+          path="/omp-models"
+          element={<OmpModelsPage />}
         />
         <Route
           path="/skills"

@@ -70,6 +70,13 @@ pub fn run() {
             commands::provider_sync::provider_sync_clone,
             commands::provider_sync::provider_sync_restore,
             commands::provider_sync::provider_sync_prune,
+            commands::omp_models::omp_list_model_providers,
+            commands::omp_models::omp_save_model_provider,
+            commands::omp_models::omp_delete_model_provider,
+            commands::omp_models::omp_disable_model_provider,
+            commands::omp_models::omp_enable_model_provider,
+            commands::omp_models::omp_preview_model_provider,
+            commands::omp_models::omp_refresh_models,
         ])
         .setup(|app| {
             #[cfg(desktop)]

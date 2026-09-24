@@ -8,6 +8,7 @@ pub mod fork;
 pub mod metadata;
 pub mod model_list;
 pub mod models;
+pub mod omp_models_config;
 pub mod parser;
 pub mod paths;
 pub mod provider;

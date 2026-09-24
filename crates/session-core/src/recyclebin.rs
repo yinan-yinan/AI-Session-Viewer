@@ -163,6 +163,7 @@ pub fn move_omp_session_to_recyclebin(
     project_id: &str,
     session_title: Option<String>,
     project_name: Option<String>,
+    is_project: bool,
 ) -> Result<String, String> {
     if !session_path.is_file() {
         return Err("OMP session file not found".to_string());
@@ -206,7 +207,7 @@ pub fn move_omp_session_to_recyclebin(
 
     let item = RecycledItem {
         id: id.clone(),
-        item_type: "session".to_string(),
+        item_type: if is_project { "project" } else { "session" }.to_string(),
         reason: "ManualDelete".to_string(),
         source: "omp".to_string(),
         project_id: project_id.to_string(),

@@ -15,6 +15,7 @@ import type {
   PaginatedMessages,
   RangeMessages,
 } from "../types";
+import type { OmpDiscoveredModel } from "../types/ompModels";
 import { api } from "../services/api";
 import { getSystemTimeZone, normalizeTimeZone } from "../utils/dateTime";
 import {
@@ -36,6 +37,12 @@ import {
 const MAIN_MESSAGES_PAGE_SIZE = 30;
 /** Half-window when jumping to a specific message (e.g. via TOC). */
 const JUMP_HALF_WINDOW = 15;
+const ompModelsRequestTimeout = 150_000;
+let ompModelsInFlight: Promise<Record<string, OmpDiscoveredModel[]> | null> | null = null;
+const groupOmpModels = (models: OmpDiscoveredModel[]) => models.reduce<Record<string, OmpDiscoveredModel[]>>((grouped, model) => {
+  (grouped[model.provider] ??= []).push(model);
+  return grouped;
+}, {});
 
 /**
  * In-flight `loadProjects` request, keyed by source. The Sidebar and
@@ -263,6 +270,12 @@ function requestInitialMessages(
 }
 
 interface AppState {
+  ompModelsByProvider: Record<string, OmpDiscoveredModel[]>;
+  ompModelsLoaded: boolean;
+  ompModelsLoading: boolean;
+  ompModelsError: string | null;
+  refreshOmpModels: (providerId?: string, force?: boolean) => Promise<Record<string, OmpDiscoveredModel[]> | null>;
+  invalidateOmpModels: (providerId?: string) => void;
   // Source
   source: "claude" | "codex" | "grok" | "omp";
   setSource: (s: "claude" | "codex" | "grok" | "omp") => void;
@@ -407,6 +420,38 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  ompModelsByProvider: {},
+  ompModelsLoaded: false,
+  ompModelsLoading: false,
+  ompModelsError: null,
+  refreshOmpModels: async (providerId, force = false) => {
+    if (get().ompModelsLoaded && !force) return get().ompModelsByProvider;
+    if (ompModelsInFlight) return ompModelsInFlight;
+    set({ ompModelsLoading: true, ompModelsError: null });
+    const request = Promise.race([
+      api.ompRefreshModels(providerId),
+      new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("模型刷新超过 150 秒仍未返回。")), ompModelsRequestTimeout)),
+    ]).then((models) => {
+      const grouped = groupOmpModels(models);
+      const next = providerId ? { ...get().ompModelsByProvider, [providerId]: grouped[providerId] ?? [] } : grouped;
+      set({ ompModelsByProvider: next, ompModelsLoaded: true, ompModelsLoading: false, ompModelsError: null });
+      return next;
+    }).catch((reason) => {
+      set({ ompModelsLoading: false, ompModelsError: reason instanceof Error ? reason.message : String(reason) });
+      return null;
+    }).finally(() => { ompModelsInFlight = null; });
+    ompModelsInFlight = request;
+    return request;
+  },
+  invalidateOmpModels: (providerId) => {
+    if (!providerId) {
+      set({ ompModelsByProvider: {}, ompModelsLoaded: false, ompModelsError: null });
+      return;
+    }
+    const next = { ...get().ompModelsByProvider };
+    delete next[providerId];
+    set({ ompModelsByProvider: next, ompModelsLoaded: false });
+  },
   source: "claude",
   setSource: (s) => {
     set({

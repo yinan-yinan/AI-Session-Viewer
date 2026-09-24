@@ -324,13 +324,14 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <details key={location.pathname} open={["/skills", "/cleanup", "/recyclebin", "/provider-sync"].includes(location.pathname)} className="mx-2 mb-2 border-t border-border pt-2">
+      <details key={location.pathname} open={["/skills", "/cleanup", "/recyclebin", "/provider-sync", "/omp-models"].includes(location.pathname)} className="mx-2 mb-2 border-t border-border pt-2">
         <summary className="navigation-link cursor-pointer list-none"><Settings className="h-4 w-4" />工具与管理<ChevronDown className="ml-auto h-3.5 w-3.5" /></summary>
         <div className="mt-1 space-y-0.5 pl-2">
           {[
             { path: "/skills", label: "Skills", icon: Sparkles },
             { path: "/cleanup", label: "无效项管理", icon: FolderX },
             { path: "/recyclebin", label: recycledItems.length ? "回收站 · " + recycledItems.length : "回收站", icon: Trash2 },
+            ...(source === "omp" ? [{ path: "/omp-models", label: "OMP 模型配置", icon: Settings }] : []),
             ...(source === "codex" ? [{ path: "/provider-sync", label: "Provider 同步", icon: Repeat }] : []),
           ].map(({ path, label, icon: Icon }) => <button key={path} onClick={() => navigate(path)} aria-current={isActive(path) ? "page" : undefined} className={"navigation-link " + (isActive(path) ? "is-active" : "")}><Icon className="h-3.5 w-3.5" />{label}</button>)}
         </div>

@@ -29,6 +29,7 @@ import type {
   RestoreOptions,
   RestoreResult,
 } from "../types/providerSync";
+import type { OmpProviderConfig, OmpDiscoveredModel } from "../types/ompModels";
 import { getApiBaseUrl, getApiToken } from "./nodeConfig";
 
 function getToken(): string | null {
@@ -950,4 +951,32 @@ export async function cleanupOrphanDirs(source: string): Promise<number> {
     {},
   );
   return result.deleted;
+}
+
+export async function ompListModelProviders(): Promise<OmpProviderConfig[]> {
+  return apiFetch("/api/omp/model-providers");
+}
+
+export async function ompSaveModelProvider(config: OmpProviderConfig, originalId: string | null): Promise<void> {
+  await apiPut("/api/omp/model-providers", { config, originalId });
+}
+
+export async function ompDeleteModelProvider(id: string): Promise<void> {
+  await apiPost("/api/omp/model-providers/delete", { id });
+}
+
+export async function ompDisableModelProvider(id: string): Promise<void> {
+  await apiPost("/api/omp/model-providers/disable", { id });
+}
+
+export async function ompEnableModelProvider(id: string): Promise<void> {
+  await apiPost("/api/omp/model-providers/enable", { id });
+}
+
+export async function ompPreviewModelProvider(config: OmpProviderConfig, originalId: string | null): Promise<string> {
+  return apiPost("/api/omp/model-providers/preview", { config, originalId });
+}
+
+export async function ompRefreshModels(provider?: string): Promise<OmpDiscoveredModel[]> {
+  return apiPost("/api/omp/model-providers/refresh", { provider: provider ?? null });
 }

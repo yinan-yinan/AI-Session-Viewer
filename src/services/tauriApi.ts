@@ -30,6 +30,7 @@ import type {
   RestoreOptions,
   RestoreResult,
 } from "../types/providerSync";
+import type { OmpProviderConfig, OmpDiscoveredModel } from "../types/ompModels";
 
 export async function getProjects(source: string): Promise<ProjectEntry[]> {
   return invoke<ProjectEntry[]>("get_projects", { source });
@@ -441,4 +442,32 @@ export async function providerSyncRestore(
 
 export async function providerSyncPrune(keep: number = 5): Promise<number> {
   return invoke<number>("provider_sync_prune", { keep });
+}
+
+export async function ompListModelProviders(): Promise<OmpProviderConfig[]> {
+  return invoke<OmpProviderConfig[]>("omp_list_model_providers");
+}
+
+export async function ompSaveModelProvider(config: OmpProviderConfig, originalId: string | null): Promise<void> {
+  return invoke<void>("omp_save_model_provider", { config, originalId });
+}
+
+export async function ompDeleteModelProvider(id: string): Promise<void> {
+  return invoke<void>("omp_delete_model_provider", { id });
+}
+
+export async function ompDisableModelProvider(id: string): Promise<void> {
+  return invoke<void>("omp_disable_model_provider", { id });
+}
+
+export async function ompEnableModelProvider(id: string): Promise<void> {
+  return invoke<void>("omp_enable_model_provider", { id });
+}
+
+export async function ompPreviewModelProvider(config: OmpProviderConfig, originalId: string | null): Promise<string> {
+  return invoke<string>("omp_preview_model_provider", { config, originalId });
+}
+
+export async function ompRefreshModels(provider?: string): Promise<OmpDiscoveredModel[]> {
+  return invoke<OmpDiscoveredModel[]>("omp_refresh_models", { provider: provider ?? null });
 }

@@ -233,36 +233,28 @@ struct OmpModelConfig {
 }
 
 fn omp_models_config_path() -> Option<std::path::PathBuf> {
-    let agent_dir = crate::provider::omp::get_agent_dir()?;
-    let yml = agent_dir.join("models.yml");
-    if yml.is_file() {
-        return Some(yml);
-    }
-    let yaml = agent_dir.join("models.yaml");
-    yaml.is_file().then_some(yaml)
+    let path = crate::provider::omp::get_agent_dir()
+        .map(|dir| crate::omp_models_config::models_config_path(&dir))?;
+    path.is_file().then_some(path)
 }
 
-fn read_omp_models() -> Result<Vec<ModelInfo>, String> {
-    let Some(path) = omp_models_config_path() else {
-        return Ok(Vec::new());
-    };
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read OMP model config {}: {}", path.display(), e))?;
-    let config: OmpModelsConfig = serde_yml::from_str(&content)
-        .map_err(|e| format!("Failed to parse OMP model config {}: {}", path.display(), e))?;
-
+fn merge_omp_models(
+    config: OmpModelsConfig,
+    discovered: Vec<crate::omp_models_config::DiscoveredModel>,
+) -> Vec<ModelInfo> {
     let mut models = Vec::new();
-    for (provider, provider_config) in config.providers {
-        for model in provider_config.models {
+    let mut seen = std::collections::HashSet::new();
+    for (provider, provider_config) in &config.providers {
+        for model in &provider_config.models {
             let id = model.id.trim();
-            if id.is_empty() {
+            if id.is_empty() || !seen.insert(format!("{provider}/{id}")) {
                 continue;
             }
-            let qualified_id = format!("{provider}/{id}");
             models.push(ModelInfo {
-                id: qualified_id,
+                id: format!("{provider}/{id}"),
                 name: model
                     .name
+                    .clone()
                     .filter(|name| !name.trim().is_empty())
                     .unwrap_or_else(|| id.to_string()),
                 provider: provider.clone(),
@@ -271,8 +263,48 @@ fn read_omp_models() -> Result<Vec<ModelInfo>, String> {
             });
         }
     }
+    for model in discovered {
+        if !config.providers.contains_key(&model.provider) || model.id.trim().is_empty() {
+            continue;
+        }
+        let id = format!("{}/{}", model.provider, model.id);
+        if seen.insert(id.clone()) {
+            models.push(ModelInfo {
+                id,
+                name: model.name,
+                provider: model.provider.clone(),
+                group: model.provider,
+                created: None,
+            });
+        }
+    }
     models.sort_by(|a, b| a.group.cmp(&b.group).then_with(|| a.name.cmp(&b.name)));
-    Ok(models)
+    models
+}
+
+async fn read_omp_models() -> Result<Vec<ModelInfo>, String> {
+    let Some(path) = omp_models_config_path() else {
+        return Ok(Vec::new());
+    };
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read OMP model config {}: {}", path.display(), e))?;
+    let config: OmpModelsConfig = serde_yml::from_str(&content)
+        .map_err(|e| format!("Failed to parse OMP model config {}: {}", path.display(), e))?;
+    if config.providers.is_empty() {
+        return Ok(Vec::new());
+    }
+    let discovered = crate::omp_models_config::list_available_models().await;
+    match discovered {
+        Ok(models) => Ok(merge_omp_models(config, models)),
+        Err(error) => {
+            let configured = merge_omp_models(config, Vec::new());
+            if configured.is_empty() {
+                Err(error)
+            } else {
+                Ok(configured)
+            }
+        }
+    }
 }
 
 /// List available models.
@@ -286,7 +318,7 @@ pub async fn list_models(
     base_url: &str,
 ) -> Result<Vec<ModelInfo>, String> {
     if source == "omp" {
-        return read_omp_models();
+        return read_omp_models().await;
     }
     if source == "codex" {
         let (cfg_key, cfg_url) = get_codex_credentials();
@@ -333,4 +365,41 @@ pub async fn list_models(
     }
 
     fetch_anthropic_models(&resolved_key, &resolved_url).await
+}
+
+#[cfg(test)]
+mod omp_tests {
+    use super::*;
+
+    #[test]
+    fn configured_and_discovered_models_are_merged_by_selector() {
+        let config: OmpModelsConfig = serde_yml::from_str("providers:\n  active:\n    models:\n      - id: pinned\n        name: Pinned\n  empty: {}\n").unwrap();
+        let discovered = vec![
+            crate::omp_models_config::DiscoveredModel {
+                provider: "active".into(),
+                id: "pinned".into(),
+                name: "Other name".into(),
+            },
+            crate::omp_models_config::DiscoveredModel {
+                provider: "active".into(),
+                id: "new".into(),
+                name: "New model".into(),
+            },
+            crate::omp_models_config::DiscoveredModel {
+                provider: "empty".into(),
+                id: "dynamic".into(),
+                name: "Dynamic".into(),
+            },
+            crate::omp_models_config::DiscoveredModel {
+                provider: "disabled".into(),
+                id: "hidden".into(),
+                name: "Hidden".into(),
+            },
+        ];
+        let models = merge_omp_models(config, discovered);
+        let ids: Vec<_> = models.iter().map(|model| model.id.as_str()).collect();
+        assert_eq!(ids, ["active/new", "active/pinned", "empty/dynamic"]);
+        assert_eq!(models[1].name, "Pinned");
+        assert_eq!(models[2].group, "empty");
+    }
 }
